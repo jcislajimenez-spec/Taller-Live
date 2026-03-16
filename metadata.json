@@ -1,0 +1,8 @@
+{
+  "name": "TallerLive",
+  "description": "Sistema de gestión visual y transparencia para talleres mecánicos. Registro de averías con fotos y audios.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
