@@ -27,6 +27,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { supabase, type Order, type Vehicle, type Customer } from './lib/supabase';
+import { supabase, type Order, type Vehicle, type Customer } from './lib/supabase';
 
 // --- Tipos ---
 type JobStatus = 'awaiting_diagnosis' | 'diagnosing' | 'waiting_customer' | 'repairing' | 'ready';
@@ -109,6 +110,12 @@ const generateUUID = () => {
 };
 
 export default function TallerLivePrototype() {
+  const path = window.location.pathname;
+
+  if (path.startsWith("/d/")) {
+    const token = path.split("/d/")[1];
+    return <PublicReport token={token} />;
+  }
   const [jobs, setJobs] = useState<any[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -1686,9 +1693,9 @@ export default function TallerLivePrototype() {
             <AnimatePresence>
               {jobs
                 .filter(j => 
-                  j.plate.toLowerCase().includes(filter.toLowerCase()) || 
-                  j.model.toLowerCase().includes(filter.toLowerCase()) ||
-                  j.customer.toLowerCase().includes(filter.toLowerCase())
+                  (j.plate || '').toLowerCase().includes((filter || '').toLowerCase()) || 
+                  (j.model || '').toLowerCase().includes((filter || '').toLowerCase()) ||
+                  (j.customer || '').toLowerCase().includes((filter || '').toLowerCase())
                 )
                 .map((job, index) => (
                 <motion.div 
@@ -1736,7 +1743,7 @@ export default function TallerLivePrototype() {
                     <div className="flex flex-col">
                       <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest leading-none mb-1">Cliente</span>
                       <h3 className="text-base font-black text-slate-800 leading-none">
-                        {job.customer.toUpperCase()}
+                        {(job.customer || '').toUpperCase()}
                       </h3>
                     </div>
                     <div className="flex items-center gap-3">
