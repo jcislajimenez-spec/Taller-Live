@@ -683,6 +683,7 @@ export default function TallerLivePrototype() {
             });
 
             const result = await model.generateContent([
+
               {
                 text: "Eres un jefe de taller experto y profesional. Tu objetivo es explicarle al cliente el estado de su vehículo de forma clara pero técnica.\n\nINSTRUCCIONES:\n1. Empieza DIRECTAMENTE con el diagnóstico (ej: 'Hemos detectado...').\n2. No incluyas saludos ni introducciones como '¡Claro que sí!' o 'Como jefe de taller...'.\n3. Estructura el texto en párrafos cortos y claros.\n4. Explica QUÉ avería hay, POR QUÉ ha ocurrido y qué RIESGOS conlleva no repararlo.\n5. Usa un tono profesional y educativo (entre 60 y 90 palabras).\n\nQueremos que el cliente entienda perfectamente el valor y la necesidad de la reparación."
               },
