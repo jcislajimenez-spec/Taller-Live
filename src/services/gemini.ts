@@ -1,6 +1,6 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 export interface ReceiptData {
   merchant: string;
@@ -9,37 +9,42 @@ export interface ReceiptData {
   category: string;
 }
 
-export async function parseReceipt(base64Image: string, mimeType: string): Promise<ReceiptData> {
+export async function parseReceipt(
+  base64Image: string,
+  mimeType: string
+): Promise<ReceiptData> {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          inlineData: {
-            mimeType,
-            data: base64Image,
-          },
-        },
-        "Analiza este ticket de compra. Extrae la siguiente información en formato JSON: el nombre del comercio (merchant), el importe total como número (amount), la fecha en formato YYYY-MM-DD (date), y una categoría sugerida (category) que debe ser una de las siguientes: Alimentación, Restaurantes, Transporte, Ocio, Suministros, Compras, Salud, Educación, Hogar, Mascotas, Viajes, Seguros, Tecnología, Otros.",
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            merchant: { type: Type.STRING, description: "Nombre del comercio" },
-            amount: { type: Type.NUMBER, description: "Importe total del ticket" },
-            date: { type: Type.STRING, description: "Fecha de la compra en formato YYYY-MM-DD" },
-            category: { type: Type.STRING, description: "Categoría sugerida (Alimentación, Restaurantes, Transporte, Ocio, Suministros, Compras, Salud, Educación, Hogar, Mascotas, Viajes, Seguros, Tecnología, Otros)" },
-          },
-          required: ["merchant", "amount", "date", "category"],
-        },
-      },
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
     });
 
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
-    
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: mimeType,
+          data: base64Image,
+        },
+      },
+      `Analiza este ticket de compra y devuelve SOLO un JSON con esta estructura:
+
+{
+  "merchant": "nombre del comercio",
+  "amount": numero,
+  "date": "YYYY-MM-DD",
+  "category": "categoria"
+}
+
+La categoría debe ser una de estas:
+Alimentación, Restaurantes, Transporte, Ocio, Suministros, Compras, Salud, Educación, Hogar, Mascotas, Viajes, Seguros, Tecnología, Otros.
+`,
+    ]);
+
+    const text = result.response.text();
+
+    if (!text) {
+      throw new Error("No response from Gemini");
+    }
+
     return JSON.parse(text) as ReceiptData;
   } catch (error) {
     console.error("Error parsing receipt:", error);
