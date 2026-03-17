@@ -672,25 +672,31 @@ export default function TallerLivePrototype() {
 
           // Llamada a Gemini para transcribir y profesionalizar
           try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
+            
+            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
-            const response = await genAI.models.generateContent({
-              model: "gemini-3-flash-preview",
-              contents: [
-                {
-                  parts: [
-                    { text: "Eres un jefe de taller experto y profesional. Tu objetivo es explicarle al cliente el estado de su vehículo de forma clara pero técnica. \n\nINSTRUCCIONES:\n1. Empieza DIRECTAMENTE con el diagnóstico (ej: 'Hemos detectado...').\n2. No incluyas saludos ni introducciones como '¡Claro que sí!' o 'Como jefe de taller...'.\n3. Estructura el texto en párrafos cortos y claros.\n4. Explica QUÉ avería hay, POR QUÉ ha ocurrido y qué RIESGOS conlleva no repararlo.\n5. Usa un tono profesional y educativo (entre 60 y 90 palabras).\n\nQueremos que el cliente entienda perfectamente el valor y la necesidad de la reparación." },
-                    { inlineData: { data: base64Audio.split(',')[1], mimeType: 'audio/webm' } }
-                  ]
-                }
-              ],
-              config: {
-                maxOutputTokens: 1000
-              }
+            const model = genAI.getGenerativeModel({
+              model: "gemini-1.5-flash",
+              generationConfig: {
+                maxOutputTokens: 1000,
+              },
             });
-            
-            const professionalText = response.text || "Diagnóstico técnico generado correctamente.";
-            
+
+            const result = await model.generateContent([
+              {
+                text: "Eres un jefe de taller experto y profesional. Tu objetivo es explicarle al cliente el estado de su vehículo de forma clara pero técnica.\n\nINSTRUCCIONES:\n1. Empieza DIRECTAMENTE con el diagnóstico (ej: 'Hemos detectado...').\n2. No incluyas saludos ni introducciones como '¡Claro que sí!' o 'Como jefe de taller...'.\n3. Estructura el texto en párrafos cortos y claros.\n4. Explica QUÉ avería hay, POR QUÉ ha ocurrido y qué RIESGOS conlleva no repararlo.\n5. Usa un tono profesional y educativo (entre 60 y 90 palabras).\n\nQueremos que el cliente entienda perfectamente el valor y la necesidad de la reparación."
+              },
+              {
+                inlineData: {
+                  data: base64Audio.split(",")[1],
+                  mimeType: "audio/webm",
+                },
+              },
+            ]);
+
+            const professionalText =
+              result.response.text() || "Diagnóstico técnico generado correctamente.";
+          
             setJobs(prevJobs => prevJobs.map(job => {
               if (job.id === jobId) {
                 return { ...job, aiDiagnosis: professionalText };
