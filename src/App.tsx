@@ -672,7 +672,7 @@ export default function TallerLivePrototype() {
 
           // Llamada a Gemini para transcribir y profesionalizar
           try {
-            const ai = new (await import("@google/genai")).GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
             const response = await ai.models.generateContent({
               model: "gemini-3-flash-preview",
               contents: [
