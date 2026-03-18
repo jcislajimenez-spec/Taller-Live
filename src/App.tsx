@@ -27,6 +27,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { supabase, type Order, type Vehicle, type Customer } from './lib/supabase';
+import { transcribeAndDiagnose, isGeminiConfigured } from './services/geminiService';
+import { AudioRecorder } from './services/audioService';
 
 // --- Tipos ---
 type JobStatus = 'awaiting_diagnosis' | 'diagnosing' | 'waiting_customer' | 'repairing' | 'ready';
@@ -113,7 +115,15 @@ export default function TallerLivePrototype() {
 
   if (path.startsWith("/d/")) {
     const token = path.split("/d/")[1];
-    return <PublicReport token={token} />;
+    // PublicReport no existe — redirigimos a la vista de cliente con query param
+    if (token) {
+      window.location.href = `${window.location.origin}?t=${token}`;
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      );
+    }
   }
   const [jobs, setJobs] = useState<any[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -172,12 +182,11 @@ export default function TallerLivePrototype() {
     return !!(url && key && !url.includes('placeholder'));
   }, []);
 
-  // Estados para Audio
+  // Estados para Audio (usa AudioRecorder del servicio)
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
-  const audioChunksRef = React.useRef<Blob[]>([]);
-  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const audioRecorderRef = React.useRef<AudioRecorder>(new AudioRecorder());
+  const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Formulario Nueva Entrada
   const [formData, setFormData] = useState({
@@ -624,147 +633,27 @@ export default function TallerLivePrototype() {
     }
   };
 
-  // --- Lógica de Audio ---
+  // --- Lógica de Audio (usa AudioRecorder + geminiService) ---
   const startRecording = async (jobId: string) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      if (!AudioRecorder.isSupported()) {
+        notify("Tu navegador no soporta grabación de audio.", 'error');
+        return;
+      }
+      if (!isGeminiConfigured()) {
+        notify("La API key de Gemini no está configurada. Revisa tu .env", 'error');
+        return;
+      }
+
+      const recorder = audioRecorderRef.current;
+      await recorder.start();
       setActiveJobId(jobId);
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        
-        if (String(jobId).startsWith('temp-')) {
-          notify("No se puede guardar el audio en un pedido local. Sincroniza primero.", 'error');
-          return;
-        }
-
-        addLog(`Finalizada grabación para job: ${jobId}`);
-        // --- PROCESAMIENTO IA ---
-        let aiText = "Procesando diagnóstico...";
-        
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const base64Audio = reader.result as string;
-          
-          // Actualizar inmediatamente con el audio
-          setJobs(prevJobs => prevJobs.map(job => {
-            if (job.id === jobId) {
-              const newStatus: JobStatus = job.status === 'awaiting_diagnosis' ? 'diagnosing' : job.status;
-              return {
-                ...job,
-                audios: [...(job.audios || []), base64Audio],
-                status: newStatus,
-                aiDiagnosis: aiText
-              };
-            }
-            return job;
-          }));
-
-          // Llamada a Gemini para transcribir y profesionalizar
-          try {
-            
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-
-            const model = genAI.getGenerativeModel({
-              model: "gemini-1.5-flash",
-              generationConfig: {
-                maxOutputTokens: 1000,
-              },
-            });
-
-            const result = await model.generateContent([
-
-              {
-                text: "Eres un jefe de taller experto y profesional. Tu objetivo es explicarle al cliente el estado de su vehículo de forma clara pero técnica.\n\nINSTRUCCIONES:\n1. Empieza DIRECTAMENTE con el diagnóstico (ej: 'Hemos detectado...').\n2. No incluyas saludos ni introducciones como '¡Claro que sí!' o 'Como jefe de taller...'.\n3. Estructura el texto en párrafos cortos y claros.\n4. Explica QUÉ avería hay, POR QUÉ ha ocurrido y qué RIESGOS conlleva no repararlo.\n5. Usa un tono profesional y educativo (entre 60 y 90 palabras).\n\nQueremos que el cliente entienda perfectamente el valor y la necesidad de la reparación."
-              },
-              {
-                inlineData: {
-                  data: base64Audio.split(",")[1],
-                  mimeType: "audio/webm",
-                },
-              },
-            ]);
-
-            const professionalText =
-              result.response.text() || "Diagnóstico técnico generado correctamente.";
-          
-            setJobs(prevJobs => prevJobs.map(job => {
-              if (job.id === jobId) {
-                return { ...job, aiDiagnosis: professionalText };
-              }
-              return job;
-            }));
-
-            if (isSupabaseConnected) {
-              // 1. Subir audio a Storage
-              const fileName = `${jobId}/${Date.now()}_audio.webm`;
-              const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('tallerlife_media')
-                .upload(fileName, audioBlob);
-
-              if (uploadError) {
-                addLog(`Error subiendo audio: ${uploadError.message}`);
-                notify(`Error al subir audio: ${uploadError.message}`, 'error');
-                throw uploadError;
-              }
-
-              const { data: { publicUrl } } = supabase.storage
-                .from('tallerlife_media')
-                .getPublicUrl(uploadData.path);
-
-              addLog(`Audio subido: ${publicUrl}`);
-
-              // 2. Guardar en order_media
-              const { error: mediaError } = await supabase
-                .from('order_media')
-                .insert([{ 
-                  order_id: jobId,
-                  file_url: publicUrl,
-                  media_type: 'audio',
-                  note: professionalText
-                }]);
-              
-              if (mediaError) {
-                addLog(`Error registrando audio: ${mediaError.message}`);
-                notify(`Error al registrar audio: ${mediaError.message}`, 'error');
-                throw mediaError;
-              }
-
-              // 3. Actualizar orden
-              await supabase.from('orders').update({ 
-                description: professionalText,
-                status: 'diagnosing'
-              }).eq('id', jobId);
-
-              notify("Audio procesado y guardado correctamente", 'success');
-            }
-          } catch (err: any) {
-            console.error("Error IA:", err);
-            addLog(`Error en procesamiento de audio: ${err.message}`);
-            notify(`Error al procesar audio: ${err.message}`, 'error');
-          }
-
-          setActiveJobId(null);
-        };
-        reader.readAsDataURL(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
+      addLog(`Grabación iniciada para job: ${jobId}`);
     } catch (err: any) {
       console.error("Error al acceder al micrófono:", err);
       addLog(`Error micrófono: ${err.message}`);
@@ -772,11 +661,124 @@ export default function TallerLivePrototype() {
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (timerRef.current) clearInterval(timerRef.current);
+  const stopRecording = async () => {
+    if (!isRecording) return;
+
+    // Detener timer inmediatamente
+    setIsRecording(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    const jobId = activeJobId;
+    if (!jobId) return;
+
+    try {
+      const recorder = audioRecorderRef.current;
+      const result = await recorder.stop();
+
+      if (String(jobId).startsWith('temp-')) {
+        notify("No se puede guardar el audio en un pedido local. Sincroniza primero.", 'error');
+        setActiveJobId(null);
+        return;
+      }
+
+      addLog(`Grabación finalizada para job: ${jobId} (${result.durationSeconds}s, ${(result.blob.size / 1024).toFixed(0)}KB)`);
+
+      // 1. Actualizar UI inmediatamente con el audio y estado "procesando"
+      setJobs(prevJobs => prevJobs.map(job => {
+        if (job.id === jobId) {
+          const newStatus: JobStatus = job.status === 'awaiting_diagnosis' ? 'diagnosing' : job.status;
+          return {
+            ...job,
+            audios: [...(job.audios || []), result.base64],
+            status: newStatus,
+            aiDiagnosis: "Procesando diagnóstico con IA..."
+          };
+        }
+        return job;
+      }));
+
+      // 2. Enviar a Gemini para transcribir y profesionalizar
+      try {
+        addLog(`Enviando audio a Gemini para transcripción...`);
+        const professionalText = await transcribeAndDiagnose(result.base64, result.mimeType);
+        addLog(`Transcripción recibida: "${professionalText.substring(0, 60)}..."`);
+
+        // Actualizar UI con el diagnóstico IA
+        setJobs(prevJobs => prevJobs.map(job => {
+          if (job.id === jobId) {
+            return { ...job, aiDiagnosis: professionalText };
+          }
+          return job;
+        }));
+
+        // 3. Subir a Supabase si está conectado
+        if (isSupabaseConnected) {
+          // 3a. Subir audio a Storage
+          const fileName = `${jobId}/${Date.now()}_audio.webm`;
+          addLog(`Subiendo audio a storage: ${fileName}`);
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('tallerlife_media')
+            .upload(fileName, result.blob);
+
+          if (uploadError) {
+            addLog(`Error subiendo audio: ${uploadError.message}`);
+            notify(`Error al subir audio: ${uploadError.message}`, 'error');
+            throw uploadError;
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('tallerlife_media')
+            .getPublicUrl(uploadData.path);
+
+          addLog(`Audio subido: ${publicUrl}`);
+
+          // 3b. Guardar en order_media
+          const { error: mediaError } = await supabase
+            .from('order_media')
+            .insert([{
+              order_id: jobId,
+              file_url: publicUrl,
+              media_type: 'audio',
+              note: professionalText
+            }]);
+
+          if (mediaError) {
+            addLog(`Error registrando audio: ${mediaError.message}`);
+            notify(`Error al registrar audio: ${mediaError.message}`, 'error');
+            throw mediaError;
+          }
+
+          // 3c. Actualizar orden con el diagnóstico
+          await supabase.from('orders').update({
+            description: professionalText,
+            status: 'diagnosing'
+          }).eq('id', jobId);
+
+          notify("Audio procesado y guardado correctamente", 'success');
+        }
+      } catch (err: any) {
+        console.error("Error procesando audio con IA:", err);
+        addLog(`Error IA: ${err.message}`);
+        notify(`Error al procesar audio: ${err.message}`, 'error');
+        
+        // Marcar el diagnóstico como fallido
+        setJobs(prevJobs => prevJobs.map(job => {
+          if (job.id === jobId) {
+            return { ...job, aiDiagnosis: "Error al procesar diagnóstico. Inténtalo de nuevo." };
+          }
+          return job;
+        }));
+      }
+
+      setActiveJobId(null);
+    } catch (err: any) {
+      console.error("Error al detener grabación:", err);
+      addLog(`Error deteniendo grabación: ${err.message}`);
+      notify("Error al procesar la grabación de audio.", 'error');
+      setActiveJobId(null);
     }
   };
 
