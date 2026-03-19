@@ -110,6 +110,50 @@ const generateUUID = () => {
   });
 };
 
+// --- Utilidad: Comprimir imagen antes de subir ---
+const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<{ blob: Blob; base64: string }> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+
+        if (w > maxWidth) {
+          h = Math.round((h * maxWidth) / w);
+          w = maxWidth;
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('No canvas context')); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { reject(new Error('Compression failed')); return; }
+            const compressedReader = new FileReader();
+            compressedReader.onloadend = () => {
+              resolve({ blob, base64: compressedReader.result as string });
+            };
+            compressedReader.readAsDataURL(blob);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Error loading image'));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error('Error reading file'));
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function TallerLivePrototype() {
   const path = window.location.pathname;
 
@@ -281,7 +325,7 @@ export default function TallerLivePrototype() {
                     ...job, 
                     status: updatedOrder.status,
                     budget: updatedOrder.budget,
-                    aiDiagnosis: updatedOrder.ai_diagnosis,
+                    aiDiagnosis: updatedOrder.description,
                     budgetShared: updatedOrder.budget_shared
                   } : job
                 );
@@ -304,7 +348,7 @@ export default function TallerLivePrototype() {
                   ...prev,
                   status: updatedOrder.status,
                   budget: updatedOrder.budget,
-                  aiDiagnosis: updatedOrder.ai_diagnosis
+                  aiDiagnosis: updatedOrder.description
                 };
               }
               return prev;
@@ -410,7 +454,10 @@ export default function TallerLivePrototype() {
             try {
               const { data } = await supabase
                 .from('orders')
-                .select('*')
+                .select(`
+                  *,
+                  media:order_media(*)
+                `)
                 .eq('id', job.id)
                 .single();
               
@@ -418,12 +465,12 @@ export default function TallerLivePrototype() {
                 const fullJob = {
                   ...job,
                   status: data.status,
-                  photos: data.photos || job.photos,
-                  aiDiagnosis: data.ai_diagnosis || job.aiDiagnosis,
+                  photos: data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || job.photos,
+                  audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
+                  aiDiagnosis: data.description || job.aiDiagnosis,
                   budget: data.budget || job.budget
                 };
                 setClientJob(fullJob);
-                // Si ya está aprobado o en reparación, marcar como aprobado para que no salga el botón
                 setIsApproved(data.status === 'repairing' || data.status === 'ready' || data.is_accepted === true);
               }
             } catch (e) {
@@ -543,94 +590,107 @@ export default function TallerLivePrototype() {
     localStorage.setItem('tallerlive_jobs', JSON.stringify(jobs));
   }, [jobs]);
 
-  // Manejo de Fotos (Simulado)
+  // Manejo de Fotos (con compresión + persistencia)
   const handlePhotoClick = (jobId: string) => {
     setActiveJobId(jobId);
     fileInputRef.current?.click();
   };
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && activeJobId) {
-      if (String(activeJobId).startsWith('temp-')) {
-        notify("No se pueden subir fotos a un pedido que no se ha sincronizado con Supabase. Inténtalo de nuevo en unos segundos.", 'error');
-        return;
-      }
-      addLog(`Iniciando subida de foto para job: ${activeJobId}`);
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        
-        // Actualizar localmente
+    if (!file || !activeJobId) return;
+
+    const jobId = activeJobId;
+
+    if (String(jobId).startsWith('temp-')) {
+      notify("No se pueden subir fotos a un pedido que no se ha sincronizado con Supabase. Inténtalo de nuevo en unos segundos.", 'error');
+      return;
+    }
+
+    addLog(`Iniciando subida de foto para job: ${jobId}`);
+
+    try {
+      // 1. Comprimir imagen (max 800px, calidad 0.7)
+      addLog(`Comprimiendo imagen...`);
+      const { blob: compressedBlob, base64: compressedBase64 } = await compressImage(file, 800, 0.7);
+      addLog(`Imagen comprimida: ${(compressedBlob.size / 1024).toFixed(0)}KB`);
+
+      // 2. Actualizar localmente con base64 (preview inmediato)
+      setJobs(prevJobs => prevJobs.map(job => {
+        if (job.id === jobId) {
+          const newStatus: JobStatus = job.status === 'awaiting_diagnosis' ? 'diagnosing' : job.status;
+          return {
+            ...job,
+            photos: [...(job.photos || []), compressedBase64],
+            status: newStatus
+          };
+        }
+        return job;
+      }));
+
+      // 3. Subir a Supabase Storage + guardar en order_media
+      if (isSupabaseConnected) {
+        const fileName = `${jobId}/${Date.now()}_photo.jpg`;
+        addLog(`Subiendo a storage: ${fileName}`);
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('tallerlife_media')
+          .upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
+
+        if (uploadError) {
+          addLog(`Error subiendo a storage: ${uploadError.message}`);
+          notify(`Error al subir imagen: ${uploadError.message}`, 'error');
+          throw uploadError;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('tallerlife_media')
+          .getPublicUrl(uploadData.path);
+
+        addLog(`Imagen subida: ${publicUrl}`);
+
+        // Guardar registro en order_media
+        const { error: mediaError } = await supabase
+          .from('order_media')
+          .insert([{
+            order_id: jobId,
+            file_url: publicUrl,
+            media_type: 'image'
+          }]);
+
+        if (mediaError) {
+          addLog(`Error guardando en order_media: ${mediaError.message}`);
+          notify(`Error al registrar imagen: ${mediaError.message}`, 'error');
+          throw mediaError;
+        }
+
+        // Actualizar estado de la orden
+        await supabase
+          .from('orders')
+          .update({ status: 'diagnosing' })
+          .eq('id', jobId);
+
+        // 4. CLAVE: Reemplazar base64 local con URL persistente de Supabase
         setJobs(prevJobs => prevJobs.map(job => {
-          if (job.id === activeJobId) {
-            const newStatus: JobStatus = job.status === 'awaiting_diagnosis' ? 'diagnosing' : job.status;
-            return {
-              ...job,
-              photos: [...(job.photos || []), base64String],
-              status: newStatus
-            };
+          if (job.id === jobId) {
+            const updatedPhotos = (job.photos || []).map((p: string) =>
+              p === compressedBase64 ? publicUrl : p
+            );
+            return { ...job, photos: updatedPhotos };
           }
           return job;
         }));
 
-        // Guardar en Supabase
-        if (isSupabaseConnected) {
-          try {
-            // 1. Subir a Storage
-            const fileName = `${activeJobId}/${Date.now()}_${file.name}`;
-            addLog(`Subiendo a storage: ${fileName}`);
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('tallerlife_media')
-              .upload(fileName, file);
-
-            if (uploadError) {
-              addLog(`Error subiendo a storage: ${uploadError.message}`);
-              notify(`Error al subir imagen: ${uploadError.message}`, 'error');
-              throw uploadError;
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-              .from('tallerlife_media')
-              .getPublicUrl(uploadData.path);
-
-            addLog(`Imagen subida con éxito: ${publicUrl}`);
-
-            // 2. Guardar en order_media
-            const { error: mediaError } = await supabase
-              .from('order_media')
-              .insert([{ 
-                order_id: activeJobId,
-                file_url: publicUrl,
-                media_type: 'image'
-              }]);
-
-            if (mediaError) {
-              addLog(`Error guardando en order_media: ${mediaError.message}`);
-              notify(`Error al registrar imagen: ${mediaError.message}`, 'error');
-              throw mediaError;
-            }
-
-            // 3. Actualizar estado de la orden
-            await supabase
-              .from('orders')
-              .update({ 
-                status: 'diagnosing'
-              })
-              .eq('id', activeJobId);
-            
-            notify("Imagen subida y registrada correctamente", 'success');
-          } catch (e: any) {
-            console.error('Error guardando media en Supabase:', e);
-            addLog(`Excepción en subida: ${e.message}`);
-          }
-        }
-
-        setActiveJobId(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      };
-      reader.readAsDataURL(file);
+        notify("Imagen subida y registrada correctamente", 'success');
+      }
+    } catch (e: any) {
+      console.error('Error en subida de foto:', e);
+      addLog(`Excepción en subida: ${e.message}`);
+      notify(`Error al subir imagen: ${e.message}`, 'error');
     }
+
+    setActiveJobId(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   // --- Lógica de Audio (usa AudioRecorder + geminiService) ---
@@ -756,6 +816,17 @@ export default function TallerLivePrototype() {
             description: professionalText,
             status: 'diagnosing'
           }).eq('id', jobId);
+
+          // 3d. CLAVE: Reemplazar base64 local con URL persistente de Supabase
+          setJobs(prevJobs => prevJobs.map(job => {
+            if (job.id === jobId) {
+              const updatedAudios = (job.audios || []).map((a: string) =>
+                a === result.base64 ? publicUrl : a
+              );
+              return { ...job, audios: updatedAudios };
+            }
+            return job;
+          }));
 
           notify("Audio procesado y guardado correctamente", 'success');
         }
@@ -968,11 +1039,15 @@ export default function TallerLivePrototype() {
               return merged.map(newJob => {
                 const localJob = prevJobs.find(j => String(j.id) === String(newJob.id));
                 if (localJob) {
+                  // Preferir URLs de Supabase (http...) sobre base64 locales (data:...)
+                  const hasRemotePhotos = newJob.photos?.some((p: string) => p.startsWith('http'));
+                  const hasRemoteAudios = newJob.audios?.some((a: string) => a.startsWith('http'));
+                  
                   return {
                     ...newJob,
-                    photos: localJob.photos?.length ? localJob.photos : newJob.photos,
-                    audios: localJob.audios?.length ? localJob.audios : newJob.audios,
-                    aiDiagnosis: localJob.aiDiagnosis || newJob.aiDiagnosis,
+                    photos: hasRemotePhotos ? newJob.photos : (localJob.photos?.length ? localJob.photos : newJob.photos),
+                    audios: hasRemoteAudios ? newJob.audios : (localJob.audios?.length ? localJob.audios : newJob.audios),
+                    aiDiagnosis: newJob.aiDiagnosis || localJob.aiDiagnosis,
                     budgetShared: localJob.budgetShared || newJob.budgetShared,
                     // Preservar estado local si Supabase aún no se ha actualizado (especialmente tras aprobación)
                     status: (() => {
@@ -1361,38 +1436,39 @@ export default function TallerLivePrototype() {
         </header>
 
         <main className="p-5 space-y-6 -mt-6">
+          {/* Datos del vehículo */}
           <div className="bg-white rounded-[32px] p-6 shadow-xl border border-slate-100">
             <div className="flex justify-between items-start mb-6">
               <div>
                 <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Vehículo</span>
                 <h3 className="text-2xl font-black text-slate-900">{clientJob.plate}</h3>
-                <p className="text-slate-500 font-bold">{clientJob.model}</p>
+                <p className="text-slate-500 font-bold text-base">{clientJob.model}</p>
               </div>
               <StatusBadge status={clientJob.status} />
             </div>
 
-            <div className="space-y-4">
-              <div className="flex flex-col gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <div className="flex justify-between items-center">
-                  <div className="flex-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Presupuesto Estimado</span>
-                    <span className="text-3xl font-black text-blue-600">{clientJob.budget || '0'}€</span>
-                  </div>
+            {/* Presupuesto + foto principal */}
+            <div className="space-y-5">
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Presupuesto Estimado</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-4xl font-black text-blue-600">{clientJob.budget || '0'}€</span>
                   {clientJob.photos?.length > 0 && (
-                    <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-white shadow-md shrink-0">
+                    <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-white shadow-md shrink-0">
                       <img src={clientJob.photos[0]} alt="Evidencia" className="w-full h-full object-cover" />
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* Diagnóstico IA */}
               {clientJob.aiDiagnosis && (
                 <div className="bg-blue-50 p-5 rounded-[24px] border border-blue-100 relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-3 opacity-10">
                     <Wrench size={40} className="text-blue-600" />
                   </div>
                   <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] block mb-3">Informe de Diagnóstico</span>
-                  <p className="text-slate-800 font-bold text-sm leading-relaxed relative z-10">
+                  <p className="text-slate-800 font-bold text-base leading-relaxed relative z-10">
                     {clientJob.aiDiagnosis}
                   </p>
                 </div>
@@ -1400,33 +1476,43 @@ export default function TallerLivePrototype() {
             </div>
           </div>
 
-          {/* Pruebas Visuales */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">Evidencias del Taller</h3>
-            
-            {clientJob.photos?.length > 0 && (
-              <div className="grid grid-cols-2 gap-3">
-                {clientJob.photos.map((photo: string, i: number) => (
-                  <div key={i} className="aspect-square rounded-2xl overflow-hidden border-2 border-white shadow-md">
-                    <img src={photo} alt="Evidencia" className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {clientJob.audios?.length > 0 && (
-              <div className="space-y-2">
-                {clientJob.audios.map((audio: string, i: number) => (
-                  <div key={i} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                      <Mic size={20} />
+          {/* Evidencias del Taller */}
+          {(clientJob.photos?.length > 0 || clientJob.audios?.length > 0) && (
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">Evidencias del Taller</h3>
+              
+              {clientJob.photos?.length > 0 && (
+                <div className="space-y-3">
+                  {clientJob.photos.map((photo: string, i: number) => (
+                    <div key={i} className="rounded-2xl overflow-hidden border-2 border-white shadow-lg" style={{ maxWidth: '100%' }}>
+                      <img 
+                        src={photo} 
+                        alt={`Evidencia ${i + 1}`} 
+                        className="w-full object-cover rounded-2xl"
+                        style={{ maxHeight: '400px' }}
+                      />
                     </div>
-                    <audio controls src={audio} className="flex-1 h-8" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+
+              {clientJob.audios?.length > 0 && (
+                <div className="space-y-3">
+                  {clientJob.audios.map((audio: string, i: number) => (
+                    <div key={i} className="bg-white p-4 rounded-2xl shadow-md border border-slate-100">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shrink-0">
+                          <Mic size={20} />
+                        </div>
+                        <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Diagnóstico Audio {i + 1}</span>
+                      </div>
+                      <audio controls src={audio} className="w-full h-10" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="pt-4">
             {!isApproved ? (
@@ -1460,15 +1546,11 @@ export default function TallerLivePrototype() {
               <ul className="text-[11px] text-slate-500 space-y-3 font-medium">
                 <li className="flex gap-2">
                   <span className="text-blue-600 font-bold">•</span>
-                  <span>Si ves <b>"Page not found"</b>, asegúrate de haber iniciado sesión en Google en este navegador.</span>
+                  <span>Si el informe no carga correctamente, intente recargar la página.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-blue-600 font-bold">•</span>
-                  <span>Si ves un error de <b>cookies</b>, pulsa el botón "Autenticar en nueva ventana" que aparece en pantalla.</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-blue-600 font-bold">•</span>
-                  <span>Este sistema está en fase de pruebas. Si el error persiste, contacta directamente con Automoción Mendoza.</span>
+                  <span>Si necesita más información, contacte directamente con Automoción Mendoza.</span>
                 </li>
               </ul>
             </div>
@@ -1607,7 +1689,7 @@ export default function TallerLivePrototype() {
                           customerEmail: d.customer?.email,
                           status: d.status,
                           budget: d.budget,
-                          aiDiagnosis: d.ai_diagnosis,
+                          aiDiagnosis: d.description,
                           budgetShared: d.budget_shared,
                           description: d.description,
                           entryTime: new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
