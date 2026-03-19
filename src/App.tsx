@@ -226,6 +226,86 @@ export default function TallerLivePrototype() {
     return !!(url && key && !url.includes('placeholder'));
   }, []);
 
+  // =============================================
+  // FUNCIÓN CENTRAL: Supabase = única fuente de verdad
+  // =============================================
+  const fetchJobsFromSupabase = React.useCallback(async (): Promise<any[]> => {
+    if (!isSupabaseConnected) return [];
+    try {
+      const { data } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          vehicle:vehicles(*),
+          customer:customers(*),
+          media:order_media(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (!data || data.length === 0) return [];
+
+      return data.map((order: any) => ({
+        id: order.id,
+        plate: order.vehicle?.plate,
+        model: order.vehicle?.model,
+        customer: order.customer?.name,
+        customerPhone: order.customer?.phone,
+        status: order.status,
+        budget: order.budget?.toString() || '0',
+        aiDiagnosis: order.description,
+        budgetShared: !!order.budget && parseFloat(order.budget) > 0,
+        urgency: order.urgency,
+        entryTime: new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        description: order.description,
+        public_token: order.public_token,
+        // CLAVE: fotos y audios SIEMPRE desde order_media (URLs de Supabase)
+        photos: order.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
+        audios: order.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
+        audioNotes: order.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
+      }));
+    } catch (e) {
+      console.error('Error fetching jobs from Supabase:', e);
+      return [];
+    }
+  }, [isSupabaseConnected]);
+
+  // Refresca solo 1 job concreto desde Supabase (tras subir foto/audio)
+  const refreshSingleJob = React.useCallback(async (jobId: string) => {
+    if (!isSupabaseConnected) return;
+    try {
+      const { data } = await supabase
+        .from('orders')
+        .select(`*, vehicle:vehicles(*), customer:customers(*), media:order_media(*)`)
+        .eq('id', jobId)
+        .single();
+
+      if (!data) return;
+
+      const refreshed = {
+        id: data.id,
+        plate: data.vehicle?.plate,
+        model: data.vehicle?.model,
+        customer: data.customer?.name,
+        customerPhone: data.customer?.phone,
+        status: data.status,
+        budget: data.budget?.toString() || '0',
+        aiDiagnosis: data.description,
+        budgetShared: !!data.budget && parseFloat(data.budget) > 0,
+        urgency: data.urgency,
+        entryTime: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        description: data.description,
+        public_token: data.public_token,
+        photos: data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
+        audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
+        audioNotes: data.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
+      };
+
+      setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? refreshed : j));
+    } catch (e) {
+      console.error('Error refreshing job:', e);
+    }
+  }, [isSupabaseConnected]);
+
   // Estados para Audio (usa AudioRecorder del servicio)
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -255,10 +335,23 @@ export default function TallerLivePrototype() {
     }
   }, [activeTab, isSupabaseConnected]);
 
-  // --- Persistencia Automática ---
+  // --- Persistencia: YA NO usamos localStorage para jobs ---
+  // Supabase es la única fuente de verdad.
+  // Solo guardamos para offline fallback básico (sin media).
   useEffect(() => {
-    if (jobs.length > 0) {
-      localStorage.setItem('tallerlive_jobs', JSON.stringify(jobs));
+    if (jobs.length > 0 && jobs.some(j => !String(j.id).startsWith('temp-'))) {
+      // Solo guardar metadata básica, NUNCA base64
+      const lite = jobs.map(j => ({
+        id: j.id, plate: j.plate, model: j.model, customer: j.customer,
+        customerPhone: j.customerPhone, status: j.status, budget: j.budget,
+        urgency: j.urgency, entryTime: j.entryTime, description: j.description,
+        public_token: j.public_token,
+        // Solo URLs (empiezan con http), nunca base64
+        photos: (j.photos || []).filter((p: string) => p.startsWith('http')),
+        audios: (j.audios || []).filter((a: string) => a.startsWith('http')),
+        aiDiagnosis: j.aiDiagnosis, budgetShared: j.budgetShared
+      }));
+      localStorage.setItem('tallerlive_jobs', JSON.stringify(lite));
     }
   }, [jobs]);
 
@@ -524,16 +617,7 @@ export default function TallerLivePrototype() {
                 audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || []
               };
               
-              // Mezclar con local para fotos/audios si no están en Supabase aún
-              const local = currentJobs.find((j: any) => String(j.id) === String(orderId));
-              if (local) {
-                fetchedJob.photos = fetchedJob.photos.length ? fetchedJob.photos : (local.photos || []);
-                fetchedJob.audios = fetchedJob.audios.length ? fetchedJob.audios : (local.audios || []);
-                fetchedJob.aiDiagnosis = fetchedJob.aiDiagnosis || local.aiDiagnosis;
-              }
-
               setClientJob(fetchedJob);
-              // CORRECCIÓN: También establecer isApproved al cargar desde Supabase
               setIsApproved(data.status === 'repairing' || data.status === 'ready');
             } else {
               setClientError("No hemos podido encontrar tu orden de trabajo. Si es una demo local, recuerda abrir el link en el mismo navegador.");
@@ -546,49 +630,17 @@ export default function TallerLivePrototype() {
         }
       }
 
-      // Cargar todos los trabajos para el modo taller
-      try {
-        const { data } = await supabase
-          .from('orders')
-          .select(`
-            *,
-            vehicle:vehicles(*),
-            customer:customers(*),
-            media:order_media(*)
-          `)
-          .order('created_at', { ascending: false });
-
-        if (data && data.length > 0) {
-            const formattedJobs = data.map(order => ({
-              id: order.id,
-              plate: order.vehicle?.plate,
-              model: order.vehicle?.model,
-              customer: order.customer?.name,
-              customerPhone: order.customer?.phone,
-              status: order.status,
-              budget: order.budget?.toString() || '0',
-              aiDiagnosis: order.description, // Usamos description como diagnóstico si no hay ai_diagnosis
-              budgetShared: !!order.budget,
-              urgency: order.urgency,
-              entryTime: new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              description: order.description,
-              photos: order.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
-              audios: order.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || []
-            }));
-          setJobs(formattedJobs);
-        }
-      } catch (e) {
-        console.log('Modo offline/local activo');
+      // Cargar todos los trabajos para el modo taller (Supabase = fuente de verdad)
+      const supabaseJobs = await fetchJobsFromSupabase();
+      if (supabaseJobs.length > 0) {
+        setJobs(supabaseJobs);
       }
     }
 
     initializeApp();
   }, []);
 
-  // Guardar en LocalStorage cada vez que cambien los trabajos
-  useEffect(() => {
-    localStorage.setItem('tallerlive_jobs', JSON.stringify(jobs));
-  }, [jobs]);
+  // (localStorage save is handled above with URL-only filter)
 
   // Manejo de Fotos (con compresión + persistencia)
   const handlePhotoClick = (jobId: string) => {
@@ -603,94 +655,62 @@ export default function TallerLivePrototype() {
     const jobId = activeJobId;
 
     if (String(jobId).startsWith('temp-')) {
-      notify("No se pueden subir fotos a un pedido que no se ha sincronizado con Supabase. Inténtalo de nuevo en unos segundos.", 'error');
+      notify("No se pueden subir fotos a un pedido que no se ha sincronizado con Supabase.", 'error');
       return;
     }
 
     addLog(`Iniciando subida de foto para job: ${jobId}`);
 
+    // Marcar job como "subiendo" para feedback visual inmediato
+    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, _uploading: true } : j));
+
     try {
-      // 1. Comprimir imagen (max 800px, calidad 0.7)
-      addLog(`Comprimiendo imagen...`);
-      const { blob: compressedBlob, base64: compressedBase64 } = await compressImage(file, 800, 0.7);
+      // 1. Comprimir imagen
+      const { blob: compressedBlob } = await compressImage(file, 800, 0.7);
       addLog(`Imagen comprimida: ${(compressedBlob.size / 1024).toFixed(0)}KB`);
 
-      // 2. Actualizar localmente con base64 (preview inmediato)
-      setJobs(prevJobs => prevJobs.map(job => {
-        if (job.id === jobId) {
-          const newStatus: JobStatus = job.status === 'awaiting_diagnosis' ? 'diagnosing' : job.status;
-          return {
-            ...job,
-            photos: [...(job.photos || []), compressedBase64],
-            status: newStatus
-          };
-        }
-        return job;
-      }));
-
-      // 3. Subir a Supabase Storage + guardar en order_media
-      if (isSupabaseConnected) {
-        const fileName = `${jobId}/${Date.now()}_photo.jpg`;
-        addLog(`Subiendo a storage: ${fileName}`);
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('tallerlife_media')
-          .upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
-
-        if (uploadError) {
-          addLog(`Error subiendo a storage: ${uploadError.message}`);
-          notify(`Error al subir imagen: ${uploadError.message}`, 'error');
-          throw uploadError;
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('tallerlife_media')
-          .getPublicUrl(uploadData.path);
-
-        addLog(`Imagen subida: ${publicUrl}`);
-
-        // Guardar registro en order_media
-        const { error: mediaError } = await supabase
-          .from('order_media')
-          .insert([{
-            order_id: jobId,
-            file_url: publicUrl,
-            media_type: 'image'
-          }]);
-
-        if (mediaError) {
-          addLog(`Error guardando en order_media: ${mediaError.message}`);
-          notify(`Error al registrar imagen: ${mediaError.message}`, 'error');
-          throw mediaError;
-        }
-
-        // Actualizar estado de la orden
-        await supabase
-          .from('orders')
-          .update({ status: 'diagnosing' })
-          .eq('id', jobId);
-
-        // 4. CLAVE: Reemplazar base64 local con URL persistente de Supabase
-        setJobs(prevJobs => prevJobs.map(job => {
-          if (job.id === jobId) {
-            const updatedPhotos = (job.photos || []).map((p: string) =>
-              p === compressedBase64 ? publicUrl : p
-            );
-            return { ...job, photos: updatedPhotos };
-          }
-          return job;
-        }));
-
-        notify("Imagen subida y registrada correctamente", 'success');
+      if (!isSupabaseConnected) {
+        notify("Sin conexión a Supabase. No se puede subir.", 'error');
+        return;
       }
-    } catch (e: any) {
-      console.error('Error en subida de foto:', e);
-      addLog(`Excepción en subida: ${e.message}`);
-      notify(`Error al subir imagen: ${e.message}`, 'error');
-    }
 
-    setActiveJobId(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+      // 2. Subir a Storage
+      const fileName = `${jobId}/${Date.now()}_photo.jpg`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('tallerlife_media')
+        .upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('tallerlife_media')
+        .getPublicUrl(uploadData.path);
+
+      addLog(`Imagen subida: ${publicUrl}`);
+
+      // 3. Persistir en order_media
+      const { error: mediaError } = await supabase
+        .from('order_media')
+        .insert([{ order_id: jobId, file_url: publicUrl, media_type: 'image' }]);
+
+      if (mediaError) throw mediaError;
+
+      // 4. Actualizar status
+      await supabase.from('orders').update({ status: 'diagnosing' }).eq('id', jobId);
+
+      // 5. CLAVE: Re-fetch este job desde Supabase (fuente de verdad)
+      await refreshSingleJob(jobId);
+
+      notify("Imagen subida correctamente", 'success');
+    } catch (e: any) {
+      console.error('Error subida foto:', e);
+      addLog(`Error: ${e.message}`);
+      notify(`Error al subir imagen: ${e.message}`, 'error');
+    } finally {
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, _uploading: false } : j));
+      setActiveJobId(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   // --- Lógica de Audio (usa AudioRecorder + geminiService) ---
@@ -724,7 +744,6 @@ export default function TallerLivePrototype() {
   const stopRecording = async () => {
     if (!isRecording) return;
 
-    // Detener timer inmediatamente
     setIsRecording(false);
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -739,55 +758,46 @@ export default function TallerLivePrototype() {
       const result = await recorder.stop();
 
       if (String(jobId).startsWith('temp-')) {
-        notify("No se puede guardar el audio en un pedido local. Sincroniza primero.", 'error');
+        notify("No se puede guardar audio en un pedido local.", 'error');
         setActiveJobId(null);
         return;
       }
 
-      addLog(`Grabación finalizada para job: ${jobId} (${result.durationSeconds}s, ${(result.blob.size / 1024).toFixed(0)}KB)`);
+      addLog(`Grabación: ${result.durationSeconds}s, ${(result.blob.size / 1024).toFixed(0)}KB`);
 
-      // 1. Actualizar UI inmediatamente con el audio y estado "procesando"
-      setJobs(prevJobs => prevJobs.map(job => {
-        if (job.id === jobId) {
-          const newStatus: JobStatus = job.status === 'awaiting_diagnosis' ? 'diagnosing' : job.status;
-          return {
-            ...job,
-            audios: [...(job.audios || []), result.base64],
-            status: newStatus,
-            aiDiagnosis: "Procesando diagnóstico con IA..."
-          };
-        }
-        return job;
-      }));
+      // 1. Feedback inmediato: marcar como "procesando" (SIN guardar base64 en state)
+      setJobs(prev => prev.map(j => j.id === jobId ? {
+        ...j,
+        status: j.status === 'awaiting_diagnosis' ? 'diagnosing' : j.status,
+        aiDiagnosis: "Procesando diagnóstico con IA..."
+      } : j));
 
-      // 2. Enviar a Gemini para transcribir y profesionalizar
+      // 2. Transcribir con Gemini (usa base64 del resultado, NO lo guarda en state)
+      let professionalText = "";
       try {
-        addLog(`Enviando audio a Gemini para transcripción...`);
-        const professionalText = await transcribeAndDiagnose(result.base64, result.mimeType);
-        addLog(`Transcripción recibida: "${professionalText.substring(0, 60)}..."`);
+        addLog(`Enviando audio a Gemini...`);
+        professionalText = await transcribeAndDiagnose(result.base64, result.mimeType);
+        addLog(`Transcripción: "${professionalText.substring(0, 60)}..."`);
 
-        // Actualizar UI con el diagnóstico IA
-        setJobs(prevJobs => prevJobs.map(job => {
-          if (job.id === jobId) {
-            return { ...job, aiDiagnosis: professionalText };
-          }
-          return job;
-        }));
+        // Feedback intermedio: mostrar diagnóstico mientras sube
+        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, aiDiagnosis: professionalText } : j));
+      } catch (err: any) {
+        addLog(`Error IA: ${err.message}`);
+        notify(`Error al transcribir: ${err.message}`, 'error');
+        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, aiDiagnosis: "Error al procesar diagnóstico." } : j));
+        setActiveJobId(null);
+        return;
+      }
 
-        // 3. Subir a Supabase si está conectado
-        if (isSupabaseConnected) {
-          // 3a. Subir audio a Storage
+      // 3. Persistir en Supabase (Storage + order_media + orders)
+      if (isSupabaseConnected) {
+        try {
           const fileName = `${jobId}/${Date.now()}_audio.webm`;
-          addLog(`Subiendo audio a storage: ${fileName}`);
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('tallerlife_media')
             .upload(fileName, result.blob);
 
-          if (uploadError) {
-            addLog(`Error subiendo audio: ${uploadError.message}`);
-            notify(`Error al subir audio: ${uploadError.message}`, 'error');
-            throw uploadError;
-          }
+          if (uploadError) throw uploadError;
 
           const { data: { publicUrl } } = supabase.storage
             .from('tallerlife_media')
@@ -795,60 +805,33 @@ export default function TallerLivePrototype() {
 
           addLog(`Audio subido: ${publicUrl}`);
 
-          // 3b. Guardar en order_media
-          const { error: mediaError } = await supabase
-            .from('order_media')
-            .insert([{
-              order_id: jobId,
-              file_url: publicUrl,
-              media_type: 'audio',
-              note: professionalText
-            }]);
+          await supabase.from('order_media').insert([{
+            order_id: jobId,
+            file_url: publicUrl,
+            media_type: 'audio',
+            note: professionalText
+          }]);
 
-          if (mediaError) {
-            addLog(`Error registrando audio: ${mediaError.message}`);
-            notify(`Error al registrar audio: ${mediaError.message}`, 'error');
-            throw mediaError;
-          }
-
-          // 3c. Actualizar orden con el diagnóstico
           await supabase.from('orders').update({
             description: professionalText,
             status: 'diagnosing'
           }).eq('id', jobId);
 
-          // 3d. CLAVE: Reemplazar base64 local con URL persistente de Supabase
-          setJobs(prevJobs => prevJobs.map(job => {
-            if (job.id === jobId) {
-              const updatedAudios = (job.audios || []).map((a: string) =>
-                a === result.base64 ? publicUrl : a
-              );
-              return { ...job, audios: updatedAudios };
-            }
-            return job;
-          }));
+          // 4. CLAVE: Re-fetch desde Supabase (fuente de verdad)
+          await refreshSingleJob(jobId);
 
-          notify("Audio procesado y guardado correctamente", 'success');
+          notify("Audio procesado y guardado", 'success');
+        } catch (err: any) {
+          addLog(`Error Supabase: ${err.message}`);
+          notify(`Error al guardar: ${err.message}`, 'error');
         }
-      } catch (err: any) {
-        console.error("Error procesando audio con IA:", err);
-        addLog(`Error IA: ${err.message}`);
-        notify(`Error al procesar audio: ${err.message}`, 'error');
-        
-        // Marcar el diagnóstico como fallido
-        setJobs(prevJobs => prevJobs.map(job => {
-          if (job.id === jobId) {
-            return { ...job, aiDiagnosis: "Error al procesar diagnóstico. Inténtalo de nuevo." };
-          }
-          return job;
-        }));
       }
 
       setActiveJobId(null);
     } catch (err: any) {
-      console.error("Error al detener grabación:", err);
-      addLog(`Error deteniendo grabación: ${err.message}`);
-      notify("Error al procesar la grabación de audio.", 'error');
+      console.error("Error grabación:", err);
+      addLog(`Error: ${err.message}`);
+      notify("Error al procesar la grabación.", 'error');
       setActiveJobId(null);
     }
   };
@@ -990,89 +973,23 @@ export default function TallerLivePrototype() {
     }
   };
 
-  // --- MEJORA: Polling para sincronización en tiempo real del taller ---
+  // --- Polling: Supabase = fuente de verdad (sin merge local) ---
   useEffect(() => {
     if (viewMode === 'taller' && isSupabaseConnected) {
       const interval = setInterval(async () => {
-        try {
-          const { data } = await supabase
-            .from('orders')
-            .select(`
-              *,
-              vehicle:vehicles(*),
-              customer:customers(*),
-              media:order_media(*)
-            `)
-            .order('created_at', { ascending: false });
-
-          if (data && data.length > 0) {
-            const formattedJobs = data.map((d: any) => ({
-              id: d.id,
-              plate: d.vehicle?.plate,
-              model: d.vehicle?.model,
-              customer: d.customer?.name,
-              customerPhone: d.customer?.phone,
-              status: d.status,
-              budget: d.budget?.toString() || '0',
-              aiDiagnosis: d.description,
-              budgetShared: !!d.budget,
-              description: d.description,
-              entryTime: new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              photos: d.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
-              audios: d.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || []
-            }));
-            
-            // --- MEJORA: No sobrescribir si hay cambios locales más recientes ---
-            setJobs(prevJobs => {
-              if (formattedJobs.length === 0 && prevJobs.length > 0) return prevJobs;
-              
-              const merged = [...formattedJobs];
-              
-              // Mantener trabajos locales que aún no están en Supabase (IDs temporales)
-              prevJobs.forEach(localJob => {
-                const isSynced = merged.some(m => String(m.id) === String(localJob.id));
-                if (!isSynced) {
-                  merged.push(localJob);
-                }
-              });
-
-              return merged.map(newJob => {
-                const localJob = prevJobs.find(j => String(j.id) === String(newJob.id));
-                if (localJob) {
-                  // Preferir URLs de Supabase (http...) sobre base64 locales (data:...)
-                  const hasRemotePhotos = newJob.photos?.some((p: string) => p.startsWith('http'));
-                  const hasRemoteAudios = newJob.audios?.some((a: string) => a.startsWith('http'));
-                  
-                  return {
-                    ...newJob,
-                    photos: hasRemotePhotos ? newJob.photos : (localJob.photos?.length ? localJob.photos : newJob.photos),
-                    audios: hasRemoteAudios ? newJob.audios : (localJob.audios?.length ? localJob.audios : newJob.audios),
-                    aiDiagnosis: newJob.aiDiagnosis || localJob.aiDiagnosis,
-                    budgetShared: localJob.budgetShared || newJob.budgetShared,
-                    // Preservar estado local si Supabase aún no se ha actualizado (especialmente tras aprobación)
-                    status: (() => {
-                      const statusOrder = ['awaiting_diagnosis', 'diagnosing', 'waiting_customer', 'repairing', 'ready', 'delivered'];
-                      const localIdx = statusOrder.indexOf(localJob.status);
-                      const remoteIdx = statusOrder.indexOf(newJob.status);
-                      
-                      if (localJob.status === 'repairing' && newJob.status === 'waiting_customer') return 'repairing';
-                      if (remoteIdx > localIdx) return newJob.status;
-                      return localJob.status;
-                    })()
-                  };
-                }
-                return newJob;
-              });
-            });
-          }
-        } catch (e) {
-          console.log("Error en polling");
+        const fresh = await fetchJobsFromSupabase();
+        if (fresh.length > 0) {
+          setJobs(prev => {
+            // Mantener solo jobs temporales (temp-) que aún no están en Supabase
+            const tempJobs = prev.filter(j => String(j.id).startsWith('temp-'));
+            return [...fresh, ...tempJobs];
+          });
         }
       }, 10000);
 
       return () => clearInterval(interval);
     }
-  }, [viewMode, isSupabaseConnected]);
+  }, [viewMode, isSupabaseConnected, fetchJobsFromSupabase]);
 
   const handleDeleteJob = async (jobId: string) => {
     // Optimistic update
@@ -1323,7 +1240,7 @@ export default function TallerLivePrototype() {
       } else {
         newJobs = [updatedJob, ...prevJobs];
       }
-      localStorage.setItem('tallerlive_jobs', JSON.stringify(newJobs));
+      localStorage.setItem('tallerlive_jobs', JSON.stringify(newJobs)); // cross-tab sync
       return newJobs;
     });
 
@@ -1670,36 +1587,8 @@ export default function TallerLivePrototype() {
               <button 
                 onClick={async () => {
                   setIsLoading(true);
-                  const savedJobs = localStorage.getItem('tallerlive_jobs');
-                  if (savedJobs) setJobs(JSON.parse(savedJobs));
-                  
-                  if (isSupabaseConnected) {
-                    try {
-                      const { data } = await supabase
-                        .from('orders')
-                        .select(`*, vehicle:vehicles(*), customer:customers(*)`)
-                        .order('created_at', { ascending: false });
-                      if (data) {
-                        const formatted = data.map((d: any) => ({
-                          id: d.id,
-                          plate: d.vehicle?.plate,
-                          model: d.vehicle?.model,
-                          customer: d.customer?.name,
-                          customerPhone: d.customer?.phone,
-                          customerEmail: d.customer?.email,
-                          status: d.status,
-                          budget: d.budget,
-                          aiDiagnosis: d.description,
-                          budgetShared: d.budget_shared,
-                          description: d.description,
-                          entryTime: new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                          photos: [],
-                          audios: []
-                        }));
-                        setJobs(formatted);
-                      }
-                    } catch (e) {}
-                  }
+                  const fresh = await fetchJobsFromSupabase();
+                  if (fresh.length > 0) setJobs(fresh);
                   setTimeout(() => setIsLoading(false), 500);
                 }}
                 className={cn(
