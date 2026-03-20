@@ -282,6 +282,12 @@ export default function TallerLivePrototype() {
 
       if (!data) return;
 
+      console.log('[refreshSingleJob] data completo:', JSON.stringify(data, null, 2));
+      console.log('[refreshSingleJob] data.media:', data.media);
+
+      const fromDBPhotos = data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [];
+      const fromDBAudios = data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [];
+
       const refreshed = {
         id: data.id,
         plate: data.vehicle?.plate,
@@ -296,15 +302,21 @@ export default function TallerLivePrototype() {
         entryTime: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         description: data.description,
         public_token: data.public_token,
-        photos: data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
-        audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
+        photos: fromDBPhotos,
+        audios: fromDBAudios,
         audioNotes: data.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
       };
 
       setJobs(prev => {
-        const exists = prev.some(j => String(j.id) === String(jobId));
-        if (exists) return prev.map(j => String(j.id) === String(jobId) ? refreshed : j);
-        return [refreshed, ...prev];
+        const existing = prev.find(j => String(j.id) === String(jobId));
+        // Si DB devuelve media vacío, conservar lo que ya hay en estado (optimistic)
+        // Esto evita sobrescribir con [] cuando RLS o timing bloquean la lectura de order_media
+        const finalPhotos = fromDBPhotos.length > 0 ? fromDBPhotos : (existing?.photos || []);
+        const finalAudios = fromDBAudios.length > 0 ? fromDBAudios : (existing?.audios || []);
+        const finalJob = { ...refreshed, photos: finalPhotos, audios: finalAudios };
+
+        if (existing) return prev.map(j => String(j.id) === String(jobId) ? finalJob : j);
+        return [finalJob, ...prev];
       });
     } catch (e) {
       console.error('Error refreshing job:', e);
