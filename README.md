@@ -1,20 +1,55 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# TallerLive – contexto para depuración
 
-# Run and deploy your AI Studio app
+## Arquitectura
 
-This contains everything you need to run your app locally.
+- App en React (App.tsx centraliza toda la lógica)
+- Supabase:
+  - Base de datos (orders, order_media)
+  - Storage (fotos y audios)
 
-View your app in AI Studio: https://ai.studio/apps/2d0c28d1-86b1-4761-ad30-d41e88a85f5d
+## Estructura de datos
 
-## Run Locally
+### orders
+- id
+- status
+- description
+- created_at
 
-**Prerequisites:**  Node.js
+### order_media
+- id
+- order_id
+- media_type (photo/audio)
+- file_url
+- created_at
 
+## Flujo real
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. Se crea una orden
+2. Se sube foto/audio a Supabase Storage
+3. Se guarda registro en order_media
+4. La app debería leer datos desde Supabase
+5. Tras refrescar, los datos desaparecen en la UI
+
+## Lo que está verificado
+
+- Supabase funciona
+- La subida funciona
+- Los datos existen en base de datos
+- El problema NO está en backend
+
+## Problema
+
+Tras refrescar:
+- La UI pierde fotos/audios
+- Pero siguen en Supabase
+
+## Hipótesis
+
+- localStorage sobrescribe datos correctos
+- useEffect o lógica de carga pisa el estado
+
+## Importante
+
+- Toda la lógica está en App.tsx
+- No hay servicios externos
+- El problema es de estado en React

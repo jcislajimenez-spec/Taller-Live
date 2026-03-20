@@ -242,6 +242,7 @@ export default function TallerLivePrototype() {
         `)
         .order('created_at', { ascending: false });
 
+
       if (!data || data.length === 0) return [];
 
       return data.map((order: any) => ({
@@ -355,15 +356,18 @@ export default function TallerLivePrototype() {
     }
   }, [jobs]);
 
-  // --- MEJORA: Sincronización entre pestañas (Mismo navegador) ---
+  // --- MEJORA: Sincronización entre pestañas (SOLO cuando NO hay Supabase) ---
+  // Cuando Supabase está conectado, el realtime channel se encarga de sincronizar.
+  // Este interval solo sirve para modo offline/demo.
   useEffect(() => {
+    if (isSupabaseConnected) return; // ← Supabase tiene su propio realtime, no machacar
+
     const syncData = () => {
       const savedJobs = localStorage.getItem('tallerlive_jobs');
       if (savedJobs) {
         const updatedJobs = JSON.parse(savedJobs);
         setJobs(updatedJobs);
         
-        // Si estamos en modo cliente, actualizar también el job actual
         if (viewMode === 'client' && clientJob) {
           const currentJob = updatedJobs.find((j: any) => String(j.id) === String(clientJob.id));
           if (currentJob) {
@@ -381,9 +385,6 @@ export default function TallerLivePrototype() {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
-    // También comprobamos periódicamente como fallback si no hay Supabase real
-    // Esto asegura que si apruebas en una pestaña, la otra se entere pronto
     const interval = setInterval(syncData, 1500);
 
     return () => {
@@ -466,10 +467,13 @@ export default function TallerLivePrototype() {
     const tokenParam = params.get('t');
 
     async function initializeApp() {
-      // --- SIEMPRE cargar datos locales primero para sincronización ---
-      const savedJobs = localStorage.getItem('tallerlive_jobs');
-      let currentJobs = savedJobs ? JSON.parse(savedJobs) : MOCK_JOBS;
-      setJobs(currentJobs);
+      // --- Cargar datos locales solo como fallback si NO hay Supabase ---
+      let currentJobs: any[] = [];
+      if (!isSupabaseConnected) {
+        const savedJobs = localStorage.getItem('tallerlive_jobs');
+        currentJobs = savedJobs ? JSON.parse(savedJobs) : MOCK_JOBS;
+        setJobs(currentJobs);
+      }
 
       // 1. Si viene un token público (Modo Supabase)
       if (tokenParam && isSupabaseConnected) {
