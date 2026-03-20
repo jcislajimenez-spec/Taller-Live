@@ -154,6 +154,28 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<{ blo
   });
 };
 
+// --- Transformación única: Supabase order row → job de React ---
+// Única fuente de verdad para la estructura de un job en el frontend.
+// Usada por fetchJobsFromSupabase y refreshSingleJob.
+const mapOrderToJob = (order: any): any => ({
+  id: order.id,
+  plate: order.vehicle?.plate,
+  model: order.vehicle?.model,
+  customer: order.customer?.name,
+  customerPhone: order.customer?.phone,
+  status: order.status,
+  budget: order.budget?.toString() || '0',
+  aiDiagnosis: order.description,
+  budgetShared: !!order.budget && parseFloat(order.budget) > 0,
+  urgency: order.urgency,
+  entryTime: new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  description: order.description,
+  public_token: order.public_token,
+  photos: order.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
+  audios: order.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
+  audioNotes: order.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
+});
+
 export default function TallerLivePrototype() {
   const path = window.location.pathname;
 
@@ -245,25 +267,7 @@ export default function TallerLivePrototype() {
 
       if (!data || data.length === 0) return [];
 
-      return data.map((order: any) => ({
-        id: order.id,
-        plate: order.vehicle?.plate,
-        model: order.vehicle?.model,
-        customer: order.customer?.name,
-        customerPhone: order.customer?.phone,
-        status: order.status,
-        budget: order.budget?.toString() || '0',
-        aiDiagnosis: order.description,
-        budgetShared: !!order.budget && parseFloat(order.budget) > 0,
-        urgency: order.urgency,
-        entryTime: new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        description: order.description,
-        public_token: order.public_token,
-        // CLAVE: fotos y audios SIEMPRE desde order_media (URLs de Supabase)
-        photos: order.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
-        audios: order.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
-        audioNotes: order.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
-      }));
+      return data.map(mapOrderToJob);
     } catch (e) {
       console.error('Error fetching jobs from Supabase:', e);
       return [];
@@ -282,44 +286,21 @@ export default function TallerLivePrototype() {
 
       if (!data) return;
 
-      console.log('[refreshSingleJob] data completo:', JSON.stringify(data, null, 2));
-      console.log('[refreshSingleJob] data.media:', data.media);
-
-      const fromDBPhotos = data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [];
-      const fromDBAudios = data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [];
-
-      const refreshed = {
-        id: data.id,
-        plate: data.vehicle?.plate,
-        model: data.vehicle?.model,
-        customer: data.customer?.name,
-        customerPhone: data.customer?.phone,
-        status: data.status,
-        budget: data.budget?.toString() || '0',
-        aiDiagnosis: data.description,
-        budgetShared: !!data.budget && parseFloat(data.budget) > 0,
-        urgency: data.urgency,
-        entryTime: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        description: data.description,
-        public_token: data.public_token,
-        photos: fromDBPhotos,
-        audios: fromDBAudios,
-        audioNotes: data.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
-      };
+      const refreshed = mapOrderToJob(data);
 
       setJobs(prev => {
         const existing = prev.find(j => String(j.id) === String(jobId));
         // Si DB devuelve media vacío, conservar lo que ya hay en estado (optimistic)
-        // Esto evita sobrescribir con [] cuando RLS o timing bloquean la lectura de order_media
-        const finalPhotos = fromDBPhotos.length > 0 ? fromDBPhotos : (existing?.photos || []);
-        const finalAudios = fromDBAudios.length > 0 ? fromDBAudios : (existing?.audios || []);
+        const finalPhotos = refreshed.photos.length > 0 ? refreshed.photos : (existing?.photos || []);
+        const finalAudios = refreshed.audios.length > 0 ? refreshed.audios : (existing?.audios || []);
         const finalJob = { ...refreshed, photos: finalPhotos, audios: finalAudios };
 
         if (existing) return prev.map(j => String(j.id) === String(jobId) ? finalJob : j);
         return [finalJob, ...prev];
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error refreshing job:', e);
+      addLog(`[refreshSingleJob] Fallo al refrescar job ${jobId}: ${e?.message ?? e}`);
     }
   }, [isSupabaseConnected]);
 
