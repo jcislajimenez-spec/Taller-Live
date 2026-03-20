@@ -301,7 +301,11 @@ export default function TallerLivePrototype() {
         audioNotes: data.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
       };
 
-      setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? refreshed : j));
+      setJobs(prev => {
+        const exists = prev.some(j => String(j.id) === String(jobId));
+        if (exists) return prev.map(j => String(j.id) === String(jobId) ? refreshed : j);
+        return [refreshed, ...prev];
+      });
     } catch (e) {
       console.error('Error refreshing job:', e);
     }
@@ -406,38 +410,23 @@ export default function TallerLivePrototype() {
           schema: 'public',
           table: 'orders'
         },
-        (payload) => {
+        async (payload) => {
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const updatedOrder = payload.new;
-            
-            // Actualizar lista global de trabajos
-            setJobs(prevJobs => {
-              const exists = prevJobs.find(j => String(j.id) === String(updatedOrder.id));
-              if (exists) {
-                return prevJobs.map(job => 
-                  String(job.id) === String(updatedOrder.id) ? { 
-                    ...job, 
-                    status: updatedOrder.status,
-                    budget: updatedOrder.budget,
-                    aiDiagnosis: updatedOrder.description,
-                    budgetShared: updatedOrder.budget_shared
-                  } : job
-                );
-              } else {
-                // Si es nuevo y no lo tenemos (poco probable pero posible)
-                return [updatedOrder, ...prevJobs];
-              }
-            });
+
+            // Un único camino de transformación: fetch completo con order_media.
+            // Evita el merge parcial que no incluye photos/audios.
+            await refreshSingleJob(updatedOrder.id);
 
             // Actualizar vista del cliente si es el mismo pedido
             setClientJob(prev => {
               if (prev && String(prev.id) === String(updatedOrder.id)) {
-                const isNowApproved = updatedOrder.status === 'repairing' || 
-                                     updatedOrder.status === 'ready' || 
+                const isNowApproved = updatedOrder.status === 'repairing' ||
+                                     updatedOrder.status === 'ready' ||
                                      updatedOrder.is_accepted === true;
-                
+
                 if (isNowApproved) setIsApproved(true);
-                
+
                 return {
                   ...prev,
                   status: updatedOrder.status,
@@ -457,7 +446,7 @@ export default function TallerLivePrototype() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isSupabaseConnected]);
+  }, [isSupabaseConnected, refreshSingleJob]);
 
   // Cargar datos iniciales (LocalStorage + Supabase)
   useEffect(() => {
@@ -692,6 +681,12 @@ export default function TallerLivePrototype() {
 
       addLog(`Imagen subida: ${publicUrl}`);
 
+      // OPTIMISTIC UPDATE: mostrar foto inmediatamente sin esperar a refreshSingleJob
+      setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? {
+        ...j,
+        photos: [...(j.photos || []), publicUrl]
+      } : j));
+
       // 3. Persistir en order_media
       const { error: mediaError } = await supabase
         .from('order_media')
@@ -808,6 +803,12 @@ export default function TallerLivePrototype() {
             .getPublicUrl(uploadData.path);
 
           addLog(`Audio subido: ${publicUrl}`);
+
+          // OPTIMISTIC UPDATE: mostrar audio inmediatamente sin esperar a refreshSingleJob
+          setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? {
+            ...j,
+            audios: [...(j.audios || []), publicUrl]
+          } : j));
 
           await supabase.from('order_media').insert([{
             order_id: jobId,
