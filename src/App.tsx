@@ -94,6 +94,91 @@ const StatusBadge = ({ status }: { status: JobStatus }) => {
   );
 };
 
+// --- WORKFLOW TRACKER ---
+
+const WORKFLOW_STEPS = [
+  { key: 'photo',  label: 'Evidencia',   Icon: Camera         },
+  { key: 'audio',  label: 'Observación', Icon: Mic            },
+  { key: 'budget', label: 'Análisis',    Icon: FileText       },
+  { key: 'shared', label: 'Validado',    Icon: MessageSquare  },
+] as const;
+
+const getStepsDone = (job: any): boolean[] => [
+  (job.photos?.length ?? 0) > 0,
+  (job.audios?.length ?? 0) > 0,
+  parseFloat(job.budget ?? '0') > 0,
+  job.budgetShared === true,
+];
+
+const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: number) => void }) => {
+  const done = getStepsDone(job);
+  const completedCount = done.filter(Boolean).length;
+  const firstPending = done.findIndex(d => !d);
+
+  return (
+    <div className="space-y-2 mt-2">
+      <div className="flex items-center">
+        {WORKFLOW_STEPS.map(({ key, label, Icon }, i) => {
+          const isDone   = done[i];
+          const isActive = !isDone && i === firstPending;
+          return (
+            <React.Fragment key={key}>
+              <div
+                className="flex flex-col items-center gap-0.5 flex-1 cursor-pointer select-none"
+                onClick={() => onStepClick?.(i)}
+              >
+                <div className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all duration-200",
+                  isDone   && "bg-emerald-600 border-emerald-600 text-white",
+                  isActive && "bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100",
+                  !isDone && !isActive && "bg-white border-slate-300 text-slate-400"
+                )}>
+                  {isDone ? <Check size={13} /> : <Icon size={12} />}
+                </div>
+                <span className={cn(
+                  "text-[8px] font-black uppercase tracking-wide leading-none",
+                  isDone   && "text-emerald-600",
+                  isActive && "text-blue-600",
+                  !isDone && !isActive && "text-slate-400"
+                )}>
+                  {label}
+                </span>
+              </div>
+              {i < WORKFLOW_STEPS.length - 1 && (
+                <div className={cn(
+                  "h-px flex-1 mb-4 mx-0.5 transition-colors duration-300",
+                  done[i] ? "bg-emerald-400" : "bg-slate-200"
+                )} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+            style={{ width: `${(completedCount / 4) * 100}%` }}
+          />
+        </div>
+        <span className="text-[9px] font-black text-slate-400 shrink-0 tabular-nums">
+          {completedCount}/4
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Siguiente acción disponible según el estado real del job
+const getNextAction = (job: any) => {
+  if (!(job.photos?.length > 0))           return { label: 'Capturar evidencia',    Icon: Camera,         variant: 'blue',  action: 'photo'  } as const;
+  if (!(job.audios?.length > 0))           return { label: 'Registrar observación', Icon: Mic,            variant: 'blue',  action: 'audio'  } as const;
+  if (!(parseFloat(job.budget ?? '0') > 0)) return { label: 'Crear análisis',       Icon: FileText,       variant: 'blue',  action: 'budget' } as const;
+  if (!job.budgetShared)                   return { label: 'Enviar al cliente',      Icon: MessageSquare,  variant: 'blue',  action: 'share'  } as const;
+  if (job.status === 'repairing')          return { label: 'Finalizar reparación',   Icon: CheckCircle2,   variant: 'green', action: 'finish' } as const;
+  return null;
+};
+
 // --- UTILIDADES ---
 const generateUUID = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -1668,21 +1753,37 @@ export default function TallerLivePrototype() {
               </div>
             </div>
 
-            <AnimatePresence>
-              {jobs
-                .filter(j => 
-                  (j.plate || '').toLowerCase().includes((filter || '').toLowerCase()) || 
-                  (j.model || '').toLowerCase().includes((filter || '').toLowerCase()) ||
-                  (j.customer || '').toLowerCase().includes((filter || '').toLowerCase())
-                )
-                .map((job, index) => (
-                <motion.div 
-                  key={job.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-white rounded-[28px] p-3 shadow-md border border-slate-200/80 relative overflow-hidden active:scale-[0.98] transition-transform"
-                >
+            {(() => {
+              const filtered = jobs.filter(j =>
+                (j.plate || '').toLowerCase().includes((filter || '').toLowerCase()) ||
+                (j.model || '').toLowerCase().includes((filter || '').toLowerCase()) ||
+                (j.customer || '').toLowerCase().includes((filter || '').toLowerCase())
+              );
+              const groups = [
+                { key: 'diagnosis',  label: 'En diagnóstico',        statuses: ['awaiting_diagnosis', 'diagnosing'] },
+                { key: 'validation', label: 'Pendiente validación',   statuses: ['waiting_customer'] },
+                { key: 'repairing',  label: 'En reparación',          statuses: ['repairing'] },
+                { key: 'ready',      label: 'Listos para entrega',     statuses: ['ready'] },
+              ];
+              return (
+                <AnimatePresence>
+                  {groups.flatMap(group => {
+                    const groupJobs = filtered.filter(j => (group.statuses as string[]).includes(j.status));
+                    if (groupJobs.length === 0) return [];
+                    return [
+                      <div key={`hdr-${group.key}`} className="flex items-center gap-2 px-1 mt-3 mb-0.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{group.label}</span>
+                        <div className="flex-1 h-px bg-slate-100" />
+                        <span className="text-[9px] font-black text-slate-300 tabular-nums">{groupJobs.length}</span>
+                      </div>,
+                      ...groupJobs.map((job, index) => (
+                      <motion.div
+                        key={job.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="bg-white rounded-[28px] p-3 shadow-md border border-slate-200/80 relative overflow-hidden active:scale-[0.98] transition-transform"
+                      >
                   {/* Indicador Lateral de Urgencia */}
                   <div className={cn(
                     "absolute left-0 top-0 bottom-0 w-2",
@@ -1716,7 +1817,7 @@ export default function TallerLivePrototype() {
                       </div>
                   </div>
 
-                  {/* CLIENTE - MÁS GRANDE Y SIN ESPACIOS MUERTOS */}
+                  {/* CLIENTE */}
                   <div className="flex items-center justify-between py-2 px-3 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
                     <div className="flex flex-col">
                       <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest leading-none mb-1">Cliente</span>
@@ -1724,181 +1825,83 @@ export default function TallerLivePrototype() {
                         {(job.customer || '').toUpperCase()}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {/* Contadores de Pruebas */}
-                      <div className="flex gap-1.5">
-                        <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
-                          <Camera size={10} className="text-blue-500" />
-                          <span className="text-[10px] font-black text-slate-600">
-                            {job.photos?.length || 0}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
-                          <Mic size={10} className="text-indigo-500" />
-                          <span className="text-[10px] font-black text-slate-600">
-                            {job.audios?.length || 0}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="w-px h-6 bg-slate-200 mx-1" />
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-black text-slate-500">{job.entryTime}</span>
-                      </div>
-                    </div>
+                    <span className="text-xs font-black text-slate-400">{job.entryTime}</span>
                   </div>
 
-                  {/* PREVISUALIZACIÓN DE FOTOS Y DIAGNÓSTICO IA EN TALLER */}
-                  <div className="px-4 pb-3">
-                    <AnimatePresence>
-                      {expandedDiagnosis === job.id && job.aiDiagnosis && (
-                        <motion.div 
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/50 mb-2 overflow-hidden"
-                        >
-                          <div className="space-y-1">
-                            <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Diagnóstico IA</span>
-                            {job.aiDiagnosis.split('\n').map((line: string, i: number) => (
-                              <p key={i} className="text-[11px] text-slate-700 leading-snug">{line}</p>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  
-                  {/* Botones de Acción - Rediseño Responsivo */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 relative z-10">
-                    {/* FOTO */}
-                    <div className="flex flex-col items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
-                        {job.photos?.length > 0 ? (
-                          <div
-                            className="relative cursor-pointer group w-full h-full"
-                            onClick={() => setExpandedDiagnosis(expandedDiagnosis === job.id ? null : job.id)}
-                          >
-                            <img src={job.photos[0]} className="w-full h-full rounded-xl object-cover border-2 border-slate-200 shadow-md" alt="Preview" />
-                          </div>
-                        ) : (
-                          <div className="w-full h-full rounded-xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
-                            <Camera size={20} />
-                          </div>
-                        )}
-                      </div>
-                      <ActionButton
-                        icon={<Camera size={16} />}
-                        label="FOTO"
-                        className="w-full bg-blue-600 text-white border-blue-700 shadow-blue-200"
-                        onClick={() => handlePhotoClick(job.id)}
-                      />
-                    </div>
-
-                    {/* AUDIO */}
-                    <div className="flex flex-col items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
-                        {job.audios?.length > 0 ? (
-                          <div className="w-full h-full rounded-xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center text-white shadow-md">
-                            <Mic size={22} />
-                          </div>
-                        ) : (
-                          <div className="w-full h-full rounded-xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
-                            <Mic size={20} />
-                          </div>
-                        )}
-                      </div>
-                      <ActionButton
-                        icon={<Mic size={16} />}
-                        label={isRecording && activeJobId === job.id ? "GRABANDO" : "AUDIO"}
-                        className={cn(
-                          "w-full bg-slate-800 text-white border-slate-900 shadow-slate-200",
-                          isRecording && activeJobId === job.id && "bg-red-600 border-red-700 animate-pulse"
-                        )}
-                        onClick={() => isRecording ? stopRecording() : startRecording(job.id)}
-                        disabled={isRecording && activeJobId !== job.id}
-                      />
-                    </div>
-
-                    {/* INFORME/PRESUPUESTO */}
-                    <div className="flex flex-col items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
-                        {job.budget && parseFloat(job.budget) > 0 ? (
-                          <div className="w-full h-full rounded-xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center text-white shadow-md">
-                            <FileText size={22} />
-                          </div>
-                        ) : job.aiDiagnosis && job.aiDiagnosis !== "Procesando diagnóstico..." ? (
-                          <div className="w-full h-full rounded-xl bg-blue-500 border-2 border-blue-600 flex items-center justify-center text-white shadow-md">
-                            <FileText size={22} />
-                          </div>
-                        ) : (
-                          <div className="w-full h-full rounded-xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
-                            <FileText size={20} />
-                          </div>
-                        )}
-                      </div>
-                      <ActionButton
-                        icon={<FileText size={16} />}
-                        label="INFORME"
-                        className={cn(
-                          "w-full",
-                          "bg-amber-500 text-white border-amber-600 shadow-amber-200",
-                          job.aiDiagnosis && job.aiDiagnosis !== "Procesando diagnóstico..." && !job.budget && "bg-blue-500 border-blue-600",
-                          job.budget && parseFloat(job.budget) > 0 && "bg-emerald-600 border-emerald-700"
-                        )}
-                        onClick={() => openBudgetModal(job.id)}
-                      />
-                    </div>
-
-                    {/* WHATSAPP */}
-                    <div className="flex flex-col items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
-                        {job.budgetShared ? (
-                          <div className="w-full h-full rounded-xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center text-white shadow-md">
-                            <MessageSquare size={22} />
-                          </div>
-                        ) : (
-                          <div className="w-full h-full rounded-xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
-                            <MessageSquare size={20} />
-                          </div>
-                        )}
-                      </div>
-                      <ActionButton
-                        icon={<MessageSquare size={16} />}
-                        label={job.budgetShared ? "ENVIADO" : "WHATSAPP"}
-                        className={cn(
-                          "w-full",
-                          job.budgetShared ? "bg-emerald-700 text-white border-emerald-800 shadow-lg" : "bg-emerald-500 text-white border-emerald-600 shadow-emerald-200",
-                          (!job.budget || parseFloat(job.budget) < 0) && "opacity-30 grayscale cursor-not-allowed",
-                          (job.budget && parseFloat(job.budget) >= 0 && !job.budgetShared) && "animate-pulse ring-4 ring-emerald-400/30"
-                        )}
-                        onClick={() => handleWhatsAppShare(job)}
-                        disabled={!job.budget || parseFloat(job.budget) < 0}
-                      />
-                    </div>
-
-                  {/* Botón de Finalizar (Solo si está aprobado) */}
-                  {job.status === 'repairing' && job.budgetShared && (
-                    <div className="mt-4 pt-4 border-t border-slate-100">
-                      <button 
-                        onClick={() => {
-                          const updatedStatus = 'ready';
-                          setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: updatedStatus } : j));
-                          if (isSupabaseConnected) {
-                            supabase.from('orders').update({ status: updatedStatus }).eq('id', job.id).then();
-                          }
-                          handleReadyNotification(job);
-                        }}
-                        className="w-full py-4 bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-lg shadow-blue-100 border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 transition-all"
-                      >
-                        <CheckCircle size={24} />
-                        Finalizar Reparación
-                      </button>
+                  {/* Fotos en miniatura */}
+                  {job.photos?.length > 0 && (
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2" style={{ scrollbarWidth: 'none' }}>
+                      {job.photos.map((url: string, i: number) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt={`Foto ${i + 1}`}
+                          className="w-14 h-14 rounded-xl object-cover border-2 border-slate-200 shadow-sm shrink-0 cursor-pointer"
+                          onClick={() => window.open(url, '_blank')}
+                        />
+                      ))}
                     </div>
                   )}
-                  </div>
+
+                  {/* WorkflowTracker */}
+                  <WorkflowTracker
+                    job={job}
+                    onStepClick={(step) => {
+                      if (step === 0) handlePhotoClick(job.id);
+                      else if (step === 1) isRecording && activeJobId === job.id ? stopRecording() : startRecording(job.id);
+                      else if (step === 2) openBudgetModal(job.id);
+                      else if (step === 3) handleWhatsAppShare(job);
+                    }}
+                  />
+
+                  {/* CTA único */}
+                  {(() => {
+                    const next = getNextAction(job);
+                    if (!next) return (
+                      <div className="mt-2 flex items-center justify-center gap-2 text-emerald-600 py-2">
+                        <CheckCircle size={16} />
+                        <span className="text-xs font-black uppercase tracking-widest">Completado</span>
+                      </div>
+                    );
+                    const isThisJobRecording = isRecording && activeJobId === job.id;
+                    const handleCTA = () => {
+                      if (next.action === 'photo') handlePhotoClick(job.id);
+                      else if (next.action === 'audio') isThisJobRecording ? stopRecording() : startRecording(job.id);
+                      else if (next.action === 'budget') openBudgetModal(job.id);
+                      else if (next.action === 'share') handleWhatsAppShare(job);
+                      else if (next.action === 'finish') {
+                        const updatedStatus = 'ready';
+                        setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: updatedStatus } : j));
+                        if (isSupabaseConnected) supabase.from('orders').update({ status: updatedStatus }).eq('id', job.id).then();
+                        handleReadyNotification(job);
+                      }
+                    };
+                    return (
+                      <button
+                        onClick={handleCTA}
+                        disabled={next.action === 'audio' && isRecording && !isThisJobRecording}
+                        className={cn(
+                          "mt-2 w-full py-3 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 text-sm shadow-md border-b-4 active:border-b-0 active:translate-y-0.5 transition-all",
+                          next.action === 'audio' && isThisJobRecording
+                            ? "bg-red-500 text-white border-red-700 animate-pulse"
+                            : next.variant === 'green'
+                              ? "bg-emerald-500 text-white border-emerald-700 shadow-emerald-100"
+                              : "bg-blue-600 text-white border-blue-800 shadow-blue-100",
+                          next.action === 'audio' && isRecording && !isThisJobRecording && "opacity-30 cursor-not-allowed"
+                        )}
+                      >
+                        <next.Icon size={16} />
+                        {next.action === 'audio' && isThisJobRecording ? 'Detener grabación' : next.label}
+                      </button>
+                    );
+                  })()}
                 </motion.div>
-              ))}
-            </AnimatePresence>
+              ))
+            ];
+          })}
+        </AnimatePresence>
+      );
+    })()}
           </>
         )}
 
