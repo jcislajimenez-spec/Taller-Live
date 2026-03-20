@@ -1650,7 +1650,7 @@ export default function TallerLivePrototype() {
       </div>
 
       {/* Lista de Trabajos - Más densa y visual */}
-      <main className="p-5 space-y-4">
+      <main className="p-3 space-y-2.5">
         {activeTab === 'taller' && (
           <>
             {!isSupabaseConnected && (
@@ -1681,7 +1681,7 @@ export default function TallerLivePrototype() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white rounded-[28px] p-4 shadow-md border border-slate-200/80 relative overflow-hidden active:scale-[0.98] transition-transform"
+                  className="bg-white rounded-[28px] p-3 shadow-md border border-slate-200/80 relative overflow-hidden active:scale-[0.98] transition-transform"
                 >
                   {/* Indicador Lateral de Urgencia */}
                   <div className={cn(
@@ -1717,7 +1717,7 @@ export default function TallerLivePrototype() {
                   </div>
 
                   {/* CLIENTE - MÁS GRANDE Y SIN ESPACIOS MUERTOS */}
-                  <div className="flex items-center justify-between py-3 px-4 bg-slate-50 rounded-2xl border border-slate-100 mb-3">
+                  <div className="flex items-center justify-between py-2 px-3 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
                     <div className="flex flex-col">
                       <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest leading-none mb-1">Cliente</span>
                       <h3 className="text-base font-black text-slate-800 leading-none">
@@ -1757,59 +1757,61 @@ export default function TallerLivePrototype() {
                           exit={{ height: 0, opacity: 0 }}
                           className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/50 mb-2 overflow-hidden"
                         >
-                          <p className="text-[10px] font-bold text-blue-700 italic leading-tight">
-                            <span className="font-black uppercase not-italic mr-1">IA:</span>
-                            {job.aiDiagnosis}
-                          </p>
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Diagnóstico IA</span>
+                            {job.aiDiagnosis.split('\n').map((line: string, i: number) => (
+                              <p key={i} className="text-[11px] text-slate-700 leading-snug">{line}</p>
+                            ))}
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
                   
                   {/* Botones de Acción - Rediseño Responsivo */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 relative z-10">
                     {/* FOTO */}
-                    <div className="flex flex-row sm:flex-col items-center gap-3 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-2xl border border-slate-100 sm:border-0">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center shrink-0">
+                    <div className="flex flex-col items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
                         {job.photos?.length > 0 ? (
-                          <div 
+                          <div
                             className="relative cursor-pointer group w-full h-full"
                             onClick={() => setExpandedDiagnosis(expandedDiagnosis === job.id ? null : job.id)}
                           >
-                            <img src={job.photos[0]} className="w-full h-full rounded-2xl object-cover border-2 border-slate-200 shadow-md" alt="Preview" />
+                            <img src={job.photos[0]} className="w-full h-full rounded-xl object-cover border-2 border-slate-200 shadow-md" alt="Preview" />
                           </div>
                         ) : (
-                          <div className="w-full h-full rounded-2xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
-                            <Camera size={24} />
+                          <div className="w-full h-full rounded-xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
+                            <Camera size={20} />
                           </div>
                         )}
                       </div>
-                      <ActionButton 
-                        icon={<Camera size={20} />} 
-                        label="FOTO" 
-                        className="flex-1 sm:w-full bg-blue-600 text-white border-blue-700 shadow-blue-200"
+                      <ActionButton
+                        icon={<Camera size={16} />}
+                        label="FOTO"
+                        className="w-full bg-blue-600 text-white border-blue-700 shadow-blue-200"
                         onClick={() => handlePhotoClick(job.id)}
                       />
                     </div>
 
                     {/* AUDIO */}
-                    <div className="flex flex-row sm:flex-col items-center gap-3 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-2xl border border-slate-100 sm:border-0">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center shrink-0">
+                    <div className="flex flex-col items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
                         {job.audios?.length > 0 ? (
-                          <div className="w-full h-full rounded-2xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center text-white shadow-md">
-                            <Mic size={28} />
+                          <div className="w-full h-full rounded-xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center text-white shadow-md">
+                            <Mic size={22} />
                           </div>
                         ) : (
-                          <div className="w-full h-full rounded-2xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
-                            <Mic size={24} />
+                          <div className="w-full h-full rounded-xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
+                            <Mic size={20} />
                           </div>
                         )}
                       </div>
-                      <ActionButton 
-                        icon={<Mic size={20} />} 
-                        label={isRecording && activeJobId === job.id ? "GRABANDO" : "AUDIO"} 
+                      <ActionButton
+                        icon={<Mic size={16} />}
+                        label={isRecording && activeJobId === job.id ? "GRABANDO" : "AUDIO"}
                         className={cn(
-                          "flex-1 sm:w-full bg-slate-800 text-white border-slate-900 shadow-slate-200",
+                          "w-full bg-slate-800 text-white border-slate-900 shadow-slate-200",
                           isRecording && activeJobId === job.id && "bg-red-600 border-red-700 animate-pulse"
                         )}
                         onClick={() => isRecording ? stopRecording() : startRecording(job.id)}
@@ -1818,27 +1820,27 @@ export default function TallerLivePrototype() {
                     </div>
 
                     {/* INFORME/PRESUPUESTO */}
-                    <div className="flex flex-row sm:flex-col items-center gap-3 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-2xl border border-slate-100 sm:border-0">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center shrink-0">
+                    <div className="flex flex-col items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
                         {job.budget && parseFloat(job.budget) > 0 ? (
-                          <div className="w-full h-full rounded-2xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center text-white shadow-md">
-                            <FileText size={28} />
+                          <div className="w-full h-full rounded-xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center text-white shadow-md">
+                            <FileText size={22} />
                           </div>
                         ) : job.aiDiagnosis && job.aiDiagnosis !== "Procesando diagnóstico..." ? (
-                          <div className="w-full h-full rounded-2xl bg-blue-500 border-2 border-blue-600 flex items-center justify-center text-white shadow-md">
-                            <FileText size={28} />
+                          <div className="w-full h-full rounded-xl bg-blue-500 border-2 border-blue-600 flex items-center justify-center text-white shadow-md">
+                            <FileText size={22} />
                           </div>
                         ) : (
-                          <div className="w-full h-full rounded-2xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
-                            <FileText size={24} />
+                          <div className="w-full h-full rounded-xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
+                            <FileText size={20} />
                           </div>
                         )}
                       </div>
-                      <ActionButton 
-                        icon={<FileText size={20} />} 
-                        label="INFORME" 
+                      <ActionButton
+                        icon={<FileText size={16} />}
+                        label="INFORME"
                         className={cn(
-                          "flex-1 sm:w-full",
+                          "w-full",
                           "bg-amber-500 text-white border-amber-600 shadow-amber-200",
                           job.aiDiagnosis && job.aiDiagnosis !== "Procesando diagnóstico..." && !job.budget && "bg-blue-500 border-blue-600",
                           job.budget && parseFloat(job.budget) > 0 && "bg-emerald-600 border-emerald-700"
@@ -1848,23 +1850,23 @@ export default function TallerLivePrototype() {
                     </div>
 
                     {/* WHATSAPP */}
-                    <div className="flex flex-row sm:flex-col items-center gap-3 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-2xl border border-slate-100 sm:border-0">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center shrink-0">
+                    <div className="flex flex-col items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
                         {job.budgetShared ? (
-                          <div className="w-full h-full rounded-2xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center text-white shadow-md">
-                            <MessageSquare size={28} />
+                          <div className="w-full h-full rounded-xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center text-white shadow-md">
+                            <MessageSquare size={22} />
                           </div>
                         ) : (
-                          <div className="w-full h-full rounded-2xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
-                            <MessageSquare size={24} />
+                          <div className="w-full h-full rounded-xl bg-white border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 opacity-40">
+                            <MessageSquare size={20} />
                           </div>
                         )}
                       </div>
-                      <ActionButton 
-                        icon={<MessageSquare size={20} />} 
-                        label={job.budgetShared ? "ENVIADO" : "WHATSAPP"} 
+                      <ActionButton
+                        icon={<MessageSquare size={16} />}
+                        label={job.budgetShared ? "ENVIADO" : "WHATSAPP"}
                         className={cn(
-                          "flex-1 sm:w-full",
+                          "w-full",
                           job.budgetShared ? "bg-emerald-700 text-white border-emerald-800 shadow-lg" : "bg-emerald-500 text-white border-emerald-600 shadow-emerald-200",
                           (!job.budget || parseFloat(job.budget) < 0) && "opacity-30 grayscale cursor-not-allowed",
                           (job.budget && parseFloat(job.budget) >= 0 && !job.budgetShared) && "animate-pulse ring-4 ring-emerald-400/30"
@@ -2482,11 +2484,11 @@ export default function TallerLivePrototype() {
                       <div className="bg-slate-50 rounded-3xl p-5 border border-slate-100 space-y-4">
                         <div className="flex flex-col gap-4">
                           {activeJob.photos?.[0] && (
-                            <div className="w-full aspect-video rounded-2xl overflow-hidden border-2 border-white shadow-md">
-                              <img 
-                                src={activeJob.photos[0]} 
-                                className="w-full h-full object-cover" 
-                                alt="Evidencia" 
+                            <div className="w-full max-h-48 rounded-2xl overflow-hidden border-2 border-white shadow-md flex items-center justify-center bg-slate-100">
+                              <img
+                                src={activeJob.photos[0]}
+                                className="max-w-full max-h-48 object-contain"
+                                alt="Evidencia"
                               />
                             </div>
                           )}
