@@ -128,12 +128,12 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
                 onClick={() => onStepClick?.(i)}
               >
                 <div className={cn(
-                  "w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all duration-200",
+                  "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-200",
                   isDone   && "bg-emerald-600 border-emerald-600 text-white",
                   isActive && "bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100",
                   !isDone && !isActive && "bg-white border-slate-300 text-slate-400"
                 )}>
-                  {isDone ? <Check size={14} /> : <Icon size={14} />}
+                  {isDone ? <Check size={18} /> : <Icon size={18} />}
                 </div>
                 <span className={cn(
                   "text-[10px] font-black uppercase tracking-wide leading-none",
@@ -161,7 +161,7 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
             style={{ width: `${(completedCount / 4) * 100}%` }}
           />
         </div>
-        <span className="text-[9px] font-black text-slate-400 shrink-0 tabular-nums">
+        <span className="text-sm font-black text-slate-400 shrink-0 tabular-nums">
           {completedCount}/4
         </span>
       </div>
@@ -1608,7 +1608,7 @@ export default function TallerLivePrototype() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="bg-[#050A1F] text-white px-5 pt-4 pb-5 rounded-b-[32px] shadow-2xl border-b-2 border-blue-500/30">
+      <header className="bg-[#050A1F] text-white px-5 py-5 rounded-b-[32px] shadow-2xl border-b-2 border-blue-500/30">
         {!isSupabaseConnected && (
           <div className="bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] font-bold py-1 px-3 rounded-full mb-3 text-center">
             MODO DEMO LOCAL: Los links solo funcionan en este navegador
@@ -1635,8 +1635,8 @@ export default function TallerLivePrototype() {
 
           {/* Centro: Empresa */}
           <div className="flex-1 text-center min-w-0">
-            <p className="text-sm font-black tracking-[0.1em] uppercase text-white leading-none truncate">AUTOMOCIÓN MENDOZA</p>
-            <p className="text-xs font-bold text-blue-400 tracking-[0.3em] mt-0.5">ALFARO</p>
+            <p className="text-2xl font-bold tracking-[0.05em] uppercase text-white leading-none truncate">AUTOMOCIÓN MENDOZA</p>
+            <p className="text-sm font-medium text-blue-400 tracking-[0.3em] mt-0.5">ALFARO</p>
           </div>
 
           {/* Derecha: Acciones */}
@@ -1663,7 +1663,7 @@ export default function TallerLivePrototype() {
         </div>
 
         {/* Fila 2: Buscador */}
-        <div className="relative">
+        <div className="relative mt-3">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
@@ -1743,7 +1743,7 @@ export default function TallerLivePrototype() {
                       <span className="text-2xl font-black tracking-tighter text-slate-900 leading-none">
                         {job.plate}
                       </span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                      <span className="text-base font-semibold text-slate-500 mt-0.5">
                         {job.model}
                       </span>
                     </div>
@@ -1828,7 +1828,7 @@ export default function TallerLivePrototype() {
                         onClick={handleCTA}
                         disabled={next.action === 'audio' && isRecording && !isThisJobRecording}
                         className={cn(
-                          "mt-2 w-full py-3 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 text-sm shadow-md border-b-4 active:border-b-0 active:translate-y-0.5 transition-all",
+                          "mt-2 w-full py-3 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 text-base shadow-md border-b-4 active:border-b-0 active:translate-y-0.5 transition-all",
                           next.action === 'audio' && isThisJobRecording
                             ? "bg-red-500 text-white border-red-700 animate-pulse"
                             : next.variant === 'green'
