@@ -1608,7 +1608,7 @@ export default function TallerLivePrototype() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="bg-[#050A1F] text-white px-5 py-5 rounded-b-[32px] shadow-2xl border-b-2 border-blue-500/30">
+      <header className="bg-[#050A1F] text-white px-5 pt-5 pb-8 rounded-b-[32px] shadow-2xl border-b-2 border-blue-500/30">
         {!isSupabaseConnected && (
           <div className="bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] font-bold py-1 px-3 rounded-full mb-3 text-center">
             MODO DEMO LOCAL: Los links solo funcionan en este navegador
@@ -1616,7 +1616,7 @@ export default function TallerLivePrototype() {
         )}
 
         {/* Fila 1: Logo · Empresa · Acciones */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           {/* Izquierda: TallerLive */}
           <div className="flex items-center gap-2 shrink-0">
             <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/40">
@@ -1635,8 +1635,8 @@ export default function TallerLivePrototype() {
 
           {/* Centro: Empresa */}
           <div className="flex-1 text-center min-w-0">
-            <p className="text-2xl font-bold tracking-[0.05em] uppercase text-white leading-none truncate">AUTOMOCIÓN MENDOZA</p>
-            <p className="text-sm font-medium text-blue-400 tracking-[0.3em] mt-0.5">ALFARO</p>
+            <p className="text-base sm:text-xl font-bold uppercase text-white leading-none">AUTOMOCIÓN MENDOZA</p>
+            <p className="text-xs sm:text-sm font-medium tracking-wide text-blue-400 mt-0.5">ALFARO</p>
           </div>
 
           {/* Derecha: Acciones */}
