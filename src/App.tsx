@@ -133,10 +133,10 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
                   isActive && "bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100",
                   !isDone && !isActive && "bg-white border-slate-300 text-slate-400"
                 )}>
-                  {isDone ? <Check size={13} /> : <Icon size={12} />}
+                  {isDone ? <Check size={14} /> : <Icon size={14} />}
                 </div>
                 <span className={cn(
-                  "text-[8px] font-black uppercase tracking-wide leading-none",
+                  "text-[10px] font-black uppercase tracking-wide leading-none",
                   isDone   && "text-emerald-600",
                   isActive && "text-blue-600",
                   !isDone && !isActive && "text-slate-400"
@@ -1607,78 +1607,66 @@ export default function TallerLivePrototype() {
         )}
       </AnimatePresence>
 
-      {/* Header de Alto Impacto */}
-      <header className="bg-[#050A1F] text-white p-5 pb-8 rounded-b-[32px] shadow-2xl border-b-2 border-blue-500/30">
+      {/* Header */}
+      <header className="bg-[#050A1F] text-white px-5 pt-4 pb-5 rounded-b-[32px] shadow-2xl border-b-2 border-blue-500/30">
         {!isSupabaseConnected && (
-          <div className="bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] font-bold py-1 px-3 rounded-full mb-4 text-center">
+          <div className="bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] font-bold py-1 px-3 rounded-full mb-3 text-center">
             MODO DEMO LOCAL: Los links solo funcionan en este navegador
           </div>
         )}
-        <div className="flex flex-col gap-5">
-          <div className="flex justify-between items-center">
-            {/* Izquierda: Logo App */}
-            <div className="flex items-center gap-2.5">
-              <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/40">
-                <Wrench className="text-white" size={20} />
-              </div>
-              <div className="flex flex-col">
-                <h1 className="text-lg font-black tracking-tighter uppercase italic text-blue-400 leading-none">TallerLive</h1>
-                <div className="flex items-center gap-1 mt-1">
-                  <div className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                  <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">
-                    {isSupabaseConnected ? 'Nube Conectada' : 'Modo Local (Sin Sincro)'}
-                  </span>
-                </div>
-              </div>
-            </div>
 
-            {/* Derecha: Ajustes y Refrescar */}
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={async () => {
-                  setIsLoading(true);
-                  const fresh = await fetchJobsFromSupabase();
-                  if (fresh.length > 0) setJobs(fresh);
-                  setTimeout(() => setIsLoading(false), 500);
-                }}
-                className={cn(
-                  "bg-white/10 p-2.5 rounded-2xl border border-white/10 backdrop-blur-md text-blue-400 hover:bg-white/20 transition-all",
-                  isLoading && "animate-spin"
-                )}
-                title="Refrescar Datos"
-              >
-                <RefreshCw size={20} />
-              </button>
-              <div className="bg-white/10 p-2.5 rounded-2xl border border-white/10 backdrop-blur-md">
-                <SettingsIcon className="text-blue-400" size={22} />
+        {/* Fila 1: Logo · Empresa · Acciones */}
+        <div className="flex items-center gap-3 mb-4">
+          {/* Izquierda: TallerLive */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/40">
+              <Wrench className="text-white" size={20} />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-black tracking-tighter uppercase italic text-blue-400 leading-none">TallerLive</h1>
+              <div className="flex items-center gap-1 mt-0.5">
+                <div className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                  {isSupabaseConnected ? 'Conectado' : 'Sin Sincro'}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Centro: Branding Mendoza - MÁS GRANDE Y POTENTE */}
-          <div className="flex-1 text-center bg-blue-600/5 py-3 rounded-2xl border border-blue-500/10 relative">
-            <h2 className="text-xl font-black tracking-[0.15em] uppercase text-white leading-none">
-              AUTOMOCIÓN MENDOZA, S.L.
-            </h2>
-            <p className="text-xs font-black text-blue-400 tracking-[0.4em] mt-1.5 opacity-90">
-              (ALFARO)
-            </p>
-            {/* Indicador de Conexión */}
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 translate-y-full flex items-center gap-1.5">
-              <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isSupabaseConnected ? "bg-emerald-400" : "bg-red-400")} />
-              <span className={cn("text-[8px] font-black uppercase tracking-widest", isSupabaseConnected ? "text-emerald-400/70" : "text-red-400/70")}>
-                {isSupabaseConnected ? "Sincronizado" : "Sin Conexión"}
-              </span>
-            </div>
+          {/* Centro: Empresa */}
+          <div className="flex-1 text-center min-w-0">
+            <p className="text-sm font-black tracking-[0.1em] uppercase text-white leading-none truncate">AUTOMOCIÓN MENDOZA</p>
+            <p className="text-xs font-bold text-blue-400 tracking-[0.3em] mt-0.5">ALFARO</p>
           </div>
 
+          {/* Derecha: Acciones */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={async () => {
+                setIsLoading(true);
+                const fresh = await fetchJobsFromSupabase();
+                if (fresh.length > 0) setJobs(fresh);
+                setTimeout(() => setIsLoading(false), 500);
+              }}
+              className={cn(
+                "bg-white/10 p-2.5 rounded-2xl border border-white/10 backdrop-blur-md text-blue-400 hover:bg-white/20 transition-all",
+                isLoading && "animate-spin"
+              )}
+              title="Refrescar Datos"
+            >
+              <RefreshCw size={20} />
+            </button>
+            <div className="bg-white/10 p-2.5 rounded-2xl border border-white/10 backdrop-blur-md">
+              <SettingsIcon className="text-blue-400" size={22} />
+            </div>
+          </div>
         </div>
 
-        {/* Buscador de Matrícula - Más integrado */}
-        <div className="relative mt-6">
+        {/* Fila 2: Buscador */}
+        <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Buscar matrícula, cliente o modelo..."
             className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 pl-12 pr-4 text-base text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 backdrop-blur-sm placeholder:text-slate-500 font-bold"
             value={filter}
@@ -1732,9 +1720,9 @@ export default function TallerLivePrototype() {
                     if (groupJobs.length === 0) return [];
                     return [
                       <div key={`hdr-${group.key}`} className="flex items-center gap-2 px-1 mt-3 mb-0.5">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{group.label}</span>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{group.label}</span>
                         <div className="flex-1 h-px bg-slate-100" />
-                        <span className="text-[9px] font-black text-slate-300 tabular-nums">{groupJobs.length}</span>
+                        <span className="text-[11px] font-black text-slate-300 tabular-nums">{groupJobs.length}</span>
                       </div>,
                       ...groupJobs.map((job, index) => (
                       <motion.div
@@ -1750,7 +1738,7 @@ export default function TallerLivePrototype() {
                     job.urgency === 'high' ? 'bg-red-500' : job.urgency === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
                   )} />
 
-                  <div className="flex justify-between items-center mb-3">
+                  <div className="flex justify-between items-center mb-2">
                     <div className="flex flex-col">
                       <span className="text-2xl font-black tracking-tighter text-slate-900 leading-none">
                         {job.plate}
@@ -1777,7 +1765,7 @@ export default function TallerLivePrototype() {
                   </div>
 
                   {/* CLIENTE */}
-                  <div className="flex items-center justify-between py-2 px-3 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-slate-50 rounded-2xl border border-slate-100 mb-1.5">
                     <div className="flex flex-col">
                       <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest leading-none mb-1">Cliente</span>
                       <h3 className="text-base font-black text-slate-800 leading-none">
@@ -2538,8 +2526,8 @@ export default function TallerLivePrototype() {
 function StatCard({ label, value, color }: { label: string, value: number, color: string }) {
   return (
     <div className="bg-white rounded-2xl p-3 shadow-md border border-slate-100 text-center">
-      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{label}</p>
-      <p className={cn("text-xl font-black", color)}>{value}</p>
+      <p className="text-xs font-black text-slate-400 uppercase mb-1">{label}</p>
+      <p className={cn("text-2xl font-black", color)}>{value}</p>
     </div>
   );
 }
