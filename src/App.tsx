@@ -97,10 +97,10 @@ const StatusBadge = ({ status }: { status: JobStatus }) => {
 // --- WORKFLOW TRACKER ---
 
 const WORKFLOW_STEPS = [
-  { key: 'photo',  label: 'Evidencia',   Icon: Camera         },
-  { key: 'audio',  label: 'Observación', Icon: Mic            },
-  { key: 'budget', label: 'Análisis',    Icon: FileText       },
-  { key: 'shared', label: 'Validado',    Icon: MessageSquare  },
+  { key: 'photo',  label: 'Fotos',     Icon: Camera         },
+  { key: 'audio',  label: 'Grabación', Icon: Mic            },
+  { key: 'budget', label: 'Informe',   Icon: FileText       },
+  { key: 'shared', label: 'Envío',     Icon: MessageSquare  },
 ] as const;
 
 const getStepsDone = (job: any): boolean[] => [
@@ -171,10 +171,10 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
 
 // Siguiente acción disponible según el estado real del job
 const getNextAction = (job: any) => {
-  if (!(job.photos?.length > 0))           return { label: 'Capturar evidencia',    Icon: Camera,         variant: 'blue',  action: 'photo'  } as const;
-  if (!(job.audios?.length > 0))           return { label: 'Registrar observación', Icon: Mic,            variant: 'blue',  action: 'audio'  } as const;
-  if (!(parseFloat(job.budget ?? '0') > 0)) return { label: 'Crear análisis',       Icon: FileText,       variant: 'blue',  action: 'budget' } as const;
-  if (!job.budgetShared)                   return { label: 'Enviar al cliente',      Icon: MessageSquare,  variant: 'blue',  action: 'share'  } as const;
+  if (!(job.photos?.length > 0))            return { label: 'Capturar fotos',            Icon: Camera,        variant: 'blue',  action: 'photo'  } as const;
+  if (!(job.audios?.length > 0))            return { label: 'Registrar grabación',       Icon: Mic,           variant: 'blue',  action: 'audio'  } as const;
+  if (!(parseFloat(job.budget ?? '0') > 0)) return { label: 'Crear informe',             Icon: FileText,      variant: 'blue',  action: 'budget' } as const;
+  if (!job.budgetShared)                    return { label: 'Enviar informe presupuesto', Icon: MessageSquare, variant: 'blue',  action: 'share'  } as const;
   if (job.status === 'repairing')          return { label: 'Finalizar reparación',   Icon: CheckCircle2,   variant: 'green', action: 'finish' } as const;
   return null;
 };
@@ -251,9 +251,9 @@ const mapOrderToJob = (order: any): any => ({
   status: order.status,
   budget: order.budget?.toString() || '0',
   aiDiagnosis: order.description,
-  budgetShared: !!order.budget && parseFloat(order.budget) > 0,
+  budgetShared: order.status === 'waiting_customer' || order.status === 'repairing' || order.status === 'ready',
   urgency: order.urgency,
-  entryTime: new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  entryTime: new Date(order.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   description: order.description,
   public_token: order.public_token,
   photos: order.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
@@ -935,33 +935,17 @@ export default function TallerLivePrototype() {
 
   const handleSaveBudget = async () => {
     if (activeJobId) {
-      const currentJob = jobs.find(j => j.id === activeJobId);
-      if (!currentJob) return;
-
       const budgetToSave = budgetAmount || '0';
-      const updatedStatus = 'waiting_customer';
-      
-      setJobs(prevJobs => prevJobs.map(job => {
-        if (job.id === activeJobId) {
-          return {
-            ...job,
-            budget: budgetToSave,
-            status: updatedStatus,
-            budgetShared: true
-          };
-        }
-        return job;
-      }));
 
-      // Sincronizar con Supabase si está conectado
+      setJobs(prevJobs => prevJobs.map(job =>
+        job.id === activeJobId ? { ...job, budget: budgetToSave } : job
+      ));
+
       if (isSupabaseConnected) {
         try {
           await supabase
             .from('orders')
-            .update({ 
-              budget: parseFloat(budgetToSave), 
-              status: updatedStatus
-            })
+            .update({ budget: parseFloat(budgetToSave) })
             .eq('id', activeJobId);
         } catch (e) {
           console.error('Error sincronizando presupuesto:', e);
@@ -971,10 +955,6 @@ export default function TallerLivePrototype() {
       setIsBudgetModalOpen(false);
       setActiveJobId(null);
       setBudgetAmount('');
-
-      // Activar WhatsApp inmediatamente
-      const jobToShare = { ...currentJob, budget: budgetToSave, status: updatedStatus };
-      handleWhatsAppShare(jobToShare, true);
     }
   };
 
@@ -1244,7 +1224,7 @@ export default function TallerLivePrototype() {
           customerPhone: formData.customerPhone,
           status: 'awaiting_diagnosis',
           urgency: formData.urgency,
-          entryTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          entryTime: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           description: formData.description,
           photos: [],
           audios: []
@@ -1270,7 +1250,7 @@ export default function TallerLivePrototype() {
         customerPhone: formData.customerPhone,
         status: 'awaiting_diagnosis',
         urgency: formData.urgency,
-        entryTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        entryTime: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         description: formData.description,
         photos: [],
         audios: []
@@ -1587,25 +1567,6 @@ export default function TallerLivePrototype() {
         ))}
       </div>
 
-      {/* Panel de Debug (Oculto por defecto, se puede activar con un botón o gesto) */}
-      <div className="fixed bottom-24 left-4 z-[500]">
-        <details className="bg-slate-900 text-white rounded-2xl shadow-2xl border border-white/10 overflow-hidden max-w-[300px]">
-          <summary className="p-3 cursor-pointer text-[10px] font-black uppercase tracking-widest bg-slate-800 flex items-center gap-2">
-            <Terminal size={14} />
-            Logs de Sistema
-          </summary>
-          <div className="p-3 max-h-[200px] overflow-y-auto font-mono text-[9px] space-y-1">
-            {debugLogs.length === 0 && <p className="opacity-50">No hay logs todavía...</p>}
-            {debugLogs.map((log, i) => (
-              <div key={i} className="border-b border-white/5 pb-1 last:border-0">
-                <span className="text-blue-400 mr-2">[{new Date().toLocaleTimeString()}]</span>
-                {log}
-              </div>
-            ))}
-          </div>
-        </details>
-      </div>
-
       {/* Input oculto para simular subida de fotos */}
       <input 
         type="file" 
@@ -1791,17 +1752,16 @@ export default function TallerLivePrototype() {
                   )} />
 
                   <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-2xl font-black tracking-tighter text-slate-900">
+                    <div className="flex flex-col">
+                      <span className="text-2xl font-black tracking-tighter text-slate-900 leading-none">
                         {job.plate}
                       </span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
                         {job.model}
                       </span>
                     </div>
                       <div className="flex items-center gap-2">
-                        <UrgencyBadge urgency={job.urgency} />
-                        <button 
+                        <button
                           onClick={() => handleEditJob(job)}
                           className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
                         >
@@ -2302,13 +2262,13 @@ export default function TallerLivePrototype() {
               onClick={() => setIsModalOpen(false)}
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               className="relative w-full max-w-lg bg-white rounded-t-[40px] sm:rounded-[40px] shadow-2xl overflow-hidden"
             >
-              <div className="p-8">
+              <div className="p-8 overflow-y-auto max-h-[92vh]">
                 <div className="flex justify-between items-center mb-8">
                   <div>
                     <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Nueva Entrada</h2>
@@ -2482,32 +2442,49 @@ export default function TallerLivePrototype() {
                   </div>
                   
                   <div className="space-y-6">
-                    {/* Previsualización del Informe (Reporte) */}
+                    {/* Previsualización del Informe */}
                     {activeJob && (
                       <div className="bg-slate-50 rounded-3xl p-5 border border-slate-100 space-y-4">
-                        <div className="flex flex-col gap-4">
-                          {activeJob.photos?.[0] && (
-                            <div className="w-full max-h-48 rounded-2xl overflow-hidden border-2 border-white shadow-md flex items-center justify-center bg-slate-100">
+                        {/* Fotos */}
+                        {activeJob.photos?.length > 0 && (
+                          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                            {activeJob.photos.map((url: string, i: number) => (
                               <img
-                                src={activeJob.photos[0]}
-                                className="max-w-full max-h-48 object-contain"
-                                alt="Evidencia"
+                                key={i}
+                                src={url}
+                                alt={`Foto ${i + 1}`}
+                                className="w-24 h-24 rounded-2xl object-cover border-2 border-white shadow-md shrink-0 cursor-pointer"
+                                onClick={() => window.open(url, '_blank')}
                               />
-                            </div>
-                          )}
-                          <div className="bg-white p-4 rounded-2xl border border-slate-100">
-                            <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Diagnóstico Técnico</p>
-                            <p className="text-sm font-bold text-slate-700 italic leading-relaxed">
-                              {activeJob.aiDiagnosis || 'Sin diagnóstico procesado'}
-                            </p>
+                            ))}
                           </div>
+                        )}
+                        {/* Audios */}
+                        {activeJob.audios?.length > 0 && (
+                          <div className="space-y-2">
+                            {activeJob.audios.map((url: string, i: number) => (
+                              <div key={i} className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100">
+                                <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shrink-0">
+                                  <Mic size={14} />
+                                </div>
+                                <audio controls src={url} className="flex-1 h-8" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Diagnóstico */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100">
+                          <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Diagnóstico Técnico</p>
+                          <p className="text-sm font-bold text-slate-700 italic leading-relaxed">
+                            {activeJob.aiDiagnosis || 'Sin diagnóstico procesado'}
+                          </p>
                         </div>
                       </div>
                     )}
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Importe Total (€)</label>
-                      <input 
+                      <input
                         type="number"
                         placeholder="Ej: 450"
                         className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-5 px-6 text-3xl font-black focus:border-blue-500 focus:outline-none transition-all"
@@ -2517,11 +2494,11 @@ export default function TallerLivePrototype() {
                       />
                     </div>
 
-                    <button 
+                    <button
                       onClick={handleSaveBudget}
                       className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black uppercase text-sm shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
                     >
-                      Guardar y Notificar
+                      Guardar informe
                     </button>
                   </div>
                 </div>
