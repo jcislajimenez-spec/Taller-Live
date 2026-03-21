@@ -1408,14 +1408,14 @@ export default function TallerLivePrototype() {
     }
 
     return (
-      <div className="min-h-screen bg-slate-50 pb-12">
+      <div className="min-h-screen bg-slate-50 pb-12 overflow-y-auto">
         <header className="bg-[#050A1F] text-white p-6 rounded-b-[40px] shadow-xl text-center">
           <h1 className="text-xl font-black tracking-tighter uppercase italic text-blue-400 mb-2">TallerLive</h1>
           <h2 className="text-lg font-black uppercase tracking-widest">Informe de Diagnóstico</h2>
           <p className="text-blue-400 text-xs font-bold mt-1">Automoción Mendoza, S.L.</p>
         </header>
 
-        <main className="p-5 space-y-6 -mt-6">
+        <main className="p-5 space-y-6 -mt-6 pb-20">
           {/* Datos del vehículo */}
           <div className="bg-white rounded-[32px] p-6 shadow-xl border border-slate-100">
             <div className="flex justify-between items-start mb-6">
@@ -1666,13 +1666,6 @@ export default function TallerLivePrototype() {
             </div>
           </div>
 
-          <button 
-            onClick={() => window.location.reload()}
-            className="p-3 bg-white/10 rounded-2xl text-white hover:bg-white/20 transition-all active:scale-90"
-            title="Sincronizar"
-          >
-            <RefreshCw size={20} />
-          </button>
         </div>
 
         {/* Buscador de Matrícula - Más integrado */}
