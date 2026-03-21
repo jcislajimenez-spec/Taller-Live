@@ -285,6 +285,7 @@ export default function TallerLivePrototype() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [budgetAmount, setBudgetAmount] = useState<string>('');
+  const [diagnosisText, setDiagnosisText] = useState<string>('');
   const [viewMode, setViewMode] = useState<'taller' | 'client'>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('orderId') ? 'client' : 'taller';
@@ -930,22 +931,26 @@ export default function TallerLivePrototype() {
     setActiveJobId(jobId);
     const job = jobs.find(j => j.id === jobId);
     setBudgetAmount(job?.budget || '0');
+    setDiagnosisText(job?.aiDiagnosis || '');
     setIsBudgetModalOpen(true);
   };
 
   const handleSaveBudget = async () => {
     if (activeJobId) {
       const budgetToSave = budgetAmount || '0';
+      const diagnosisToSave = diagnosisText;
 
       setJobs(prevJobs => prevJobs.map(job =>
-        job.id === activeJobId ? { ...job, budget: budgetToSave } : job
+        job.id === activeJobId
+          ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave }
+          : job
       ));
 
       if (isSupabaseConnected) {
         try {
           await supabase
             .from('orders')
-            .update({ budget: parseFloat(budgetToSave) })
+            .update({ budget: parseFloat(budgetToSave), description: diagnosisToSave })
             .eq('id', activeJobId);
         } catch (e) {
           console.error('Error sincronizando presupuesto:', e);
@@ -955,6 +960,7 @@ export default function TallerLivePrototype() {
       setIsBudgetModalOpen(false);
       setActiveJobId(null);
       setBudgetAmount('');
+      setDiagnosisText('');
     }
   };
 
@@ -2465,12 +2471,15 @@ export default function TallerLivePrototype() {
                             ))}
                           </div>
                         )}
-                        {/* Diagnóstico */}
+                        {/* Diagnóstico editable */}
                         <div className="bg-white p-4 rounded-2xl border border-slate-100">
                           <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Diagnóstico Técnico</p>
-                          <p className="text-sm font-bold text-slate-700 italic leading-relaxed">
-                            {activeJob.aiDiagnosis || 'Sin diagnóstico procesado'}
-                          </p>
+                          <textarea
+                            className="w-full text-sm font-bold text-slate-700 italic leading-relaxed bg-transparent resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-lg p-1 min-h-[120px]"
+                            value={diagnosisText}
+                            onChange={(e) => setDiagnosisText(e.target.value)}
+                            placeholder="Sin diagnóstico procesado"
+                          />
                         </div>
                       </div>
                     )}
