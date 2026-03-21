@@ -2426,9 +2426,9 @@ export default function TallerLivePrototype() {
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
-                className="relative w-full max-w-md bg-white rounded-t-[40px] sm:rounded-[40px] shadow-2xl overflow-hidden"
+                className="relative w-full max-w-md bg-white rounded-t-[40px] sm:rounded-[40px] shadow-2xl max-h-[92dvh] overflow-hidden flex flex-col"
               >
-                <div className="p-8">
+                <div className="p-8 overflow-y-auto flex-1">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Presupuestar</h2>
                     <button onClick={() => setIsBudgetModalOpen(false)} className="p-2 bg-slate-100 rounded-full text-slate-400"><X size={20} /></button>
