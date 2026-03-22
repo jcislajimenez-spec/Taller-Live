@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════
-   INDUSTRIAL MATERIAL SYSTEM — AGRESIVO (TEST REALISMO)
+   INDUSTRIAL MATERIAL SYSTEM — PREMIUM REAL (FINAL)
    ═══════════════════════════════════════════════════════ */
 
 /* ── BODY ── */
@@ -10,12 +10,12 @@ body {
     ellipse 78% 52% at 47% 26%,
     #252838 0%,
     #1C1E28 58%,
-    #0B0D12 100%
+    #0F1118 100%
   );
   margin: 0;
 }
 
-/* ── NIEBLA AGRESIVA GLOBAL ── */
+/* ── CAPA GLOBAL CANALLA ── */
 body::after {
   content: '';
   position: fixed;
@@ -23,49 +23,40 @@ body::after {
   pointer-events: none;
   z-index: 9999;
 
-  opacity: 0.45;
+  opacity: 0.22;
   mix-blend-mode: overlay;
 
   background-image:
 
-    /* ondas tipo humo (clave) */
-    radial-gradient(
-      ellipse 80% 60% at 40% 45%,
-      rgba(255,255,255,0.15),
-      transparent 60%
-    ),
+    /* ruido fino */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E"),
 
-    radial-gradient(
-      ellipse 70% 50% at 60% 55%,
-      rgba(0,0,0,0.25),
-      transparent 65%
-    ),
-
-    /* variación irregular */
-    radial-gradient(
-      ellipse 90% 70% at 50% 50%,
-      rgba(255,255,255,0.08),
-      transparent 70%
-    ),
-
-    /* rayado global */
+    /* rayaduras globales */
     repeating-linear-gradient(
-      110deg,
-      rgba(255,255,255,0.06) 0px,
-      rgba(255,255,255,0.06) 1px,
+      115deg,
+      rgba(255,255,255,0.04) 0px,
+      rgba(255,255,255,0.04) 1px,
       transparent 2px,
-      transparent 5px
+      transparent 6px
     ),
 
-    /* ruido fuerte */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+    /* desgaste tipo humo */
+    radial-gradient(
+      ellipse at 48% 42%,
+      rgba(255,255,255,0.06),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse at 62% 58%,
+      rgba(0,0,0,0.08),
+      transparent 60%
+    );
 
   background-size:
+    300px 300px,
     auto,
     auto,
-    auto,
-    auto,
-    300px 300px;
+    auto;
 }
 
 /* ── ROOT ── */
@@ -74,7 +65,10 @@ body::after {
   min-height: 100vh;
 }
 
-/* ── TARJETAS ── */
+/* ═══════════════════════════════════════
+   TARJETAS — METAL REAL
+   ═══════════════════════════════════════ */
+
 .card-industrial {
   position: relative;
   overflow: hidden;
@@ -82,28 +76,21 @@ body::after {
 
   background:
 
-    /* desgaste central fuerte */
-    radial-gradient(circle at 50% 60%, rgba(255,255,255,0.18), transparent 60%),
+    radial-gradient(circle at 50% 60%, rgba(255,255,255,0.08), transparent 60%),
+    radial-gradient(ellipse 45% 35% at 50% 65%, rgba(255,255,255,0.06), transparent 70%),
+    radial-gradient(ellipse 75% 60% at 85% 90%, rgba(0,0,0,0.48), transparent),
+    radial-gradient(ellipse 55% 35% at 30% 20%, rgba(255,255,255,0.14), transparent),
 
-    /* zona de uso marcada */
-    radial-gradient(ellipse 50% 40% at 50% 65%, rgba(255,255,255,0.12), transparent 70%),
-
-    /* sombra profunda */
-    radial-gradient(ellipse 80% 65% at 85% 90%, rgba(0,0,0,0.60), transparent),
-
-    /* luz agresiva */
-    radial-gradient(ellipse 60% 40% at 30% 20%, rgba(255,255,255,0.18), transparent),
-
-    linear-gradient(152deg, #272A3D 0%, #1E2130 100%);
+    linear-gradient(152deg, #272A3D 0%, #222535 100%);
 
   box-shadow:
-    0 18px 60px rgba(0,0,0,0.80),
-    0 6px 20px rgba(0,0,0,0.60),
-    inset 0 2px 0 rgba(255,255,255,0.08),
-    inset 0 -3px 0 rgba(0,0,0,0.5);
+    0 12px 40px rgba(0,0,0,0.65),
+    0 4px 12px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    inset 0 -2px 0 rgba(0,0,0,0.4);
 }
 
-/* ── MICROARAÑAZOS FUERTES ── */
+/* ── MICROARAÑAZOS METÁLICOS REALES ── */
 .card-industrial::before {
   content: '';
   position: absolute;
@@ -111,54 +98,71 @@ body::after {
   pointer-events: none;
   z-index: -1;
 
-  opacity: 0.35;
+  opacity: 0.20;
   mix-blend-mode: overlay;
 
   background-image:
 
-    /* dirección dominante fuerte */
+    /* dirección dominante (uso real) */
     repeating-linear-gradient(
-      10deg,
-      rgba(255,255,255,0.05) 0px,
-      rgba(255,255,255,0.05) 1px,
-      transparent 2px,
+      12deg,
+      rgba(255,255,255,0.025) 0px,
+      rgba(255,255,255,0.025) 1px,
+      transparent 1px,
       transparent 5px
     ),
 
-    /* contrarresto */
+    /* contrarresto (cruce real) */
     repeating-linear-gradient(
-      -20deg,
-      rgba(0,0,0,0.06) 0px,
-      rgba(0,0,0,0.06) 1px,
-      transparent 2px,
+      -18deg,
+      rgba(0,0,0,0.035) 0px,
+      rgba(0,0,0,0.035) 1px,
+      transparent 1px,
       transparent 7px
     ),
 
     /* ruido mecánico */
     repeating-linear-gradient(
-      3deg,
-      rgba(255,255,255,0.03) 0px,
+      2deg,
+      rgba(255,255,255,0.015) 0px,
       transparent 2px,
       transparent 6px
+    ),
+
+    /* desgaste irregular */
+    radial-gradient(
+      ellipse at 52% 58%,
+      rgba(255,255,255,0.06),
+      transparent 60%
+    ),
+
+    radial-gradient(
+      ellipse at 48% 42%,
+      rgba(0,0,0,0.08),
+      transparent 65%
     );
 }
 
-/* ── KPI ── */
+/* ═══════════════════════════════════════
+   KPI — HORMIGÓN
+   ═══════════════════════════════════════ */
+
 .stone-card {
   background:
 
-    radial-gradient(circle at 50% 55%, rgba(255,255,255,0.30), transparent 60%),
-    radial-gradient(ellipse 70% 50% at 30% 20%, rgba(255,255,255,0.40), transparent),
-    radial-gradient(ellipse 60% 80% at 75% 80%, rgba(0,0,0,0.30), transparent),
+    radial-gradient(circle at 50% 55%, rgba(255,255,255,0.22), transparent 60%),
+    radial-gradient(ellipse 65% 45% at 30% 20%, rgba(255,255,255,0.34), transparent),
+    radial-gradient(ellipse 50% 70% at 75% 80%, rgba(0,0,0,0.20), transparent),
 
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.25'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.18'/%3E%3C/svg%3E"),
 
-    linear-gradient(168deg, #C3C6D0 0%, #A6A9B5 100%);
+    linear-gradient(168deg, #C3C6D0 0%, #ACAFBB 100%);
 
+  background-size: auto, auto, auto, 200px 200px, auto;
   background-blend-mode: normal, normal, normal, multiply, normal;
 
   box-shadow:
-    0 8px 30px rgba(0,0,0,0.55),
-    inset 0 3px 0 rgba(255,255,255,0.6),
-    inset 0 -3px 0 rgba(0,0,0,0.3);
+    0 6px 24px rgba(0,0,0,0.45),
+    inset 0 2px 0 rgba(255,255,255,0.5),
+    inset 0 -2px 0 rgba(0,0,0,0.25);
 }
