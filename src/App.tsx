@@ -129,7 +129,7 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
               >
                 <div className={cn(
                   "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-200",
-                  isDone   && "bg-emerald-600 border-emerald-600 text-white",
+                  isDone   && "bg-emerald-500 border-emerald-500 text-white",
                   isActive && "bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100",
                   !isDone && !isActive && "bg-white border-slate-300 text-slate-400"
                 )}>
@@ -137,7 +137,7 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
                 </div>
                 <span className={cn(
                   "text-[10px] font-black uppercase tracking-wide leading-none",
-                  isDone   && "text-emerald-600",
+                  isDone   && "text-emerald-500",
                   isActive && "text-blue-600",
                   !isDone && !isActive && "text-slate-400"
                 )}>
@@ -147,7 +147,7 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
               {i < WORKFLOW_STEPS.length - 1 && (
                 <div className={cn(
                   "h-px flex-1 mb-4 mx-0.5 transition-colors duration-300",
-                  done[i] ? "bg-emerald-400" : "bg-slate-200"
+                  done[i] ? "bg-emerald-500" : "bg-slate-200"
                 )} />
               )}
             </React.Fragment>
@@ -1665,7 +1665,7 @@ export default function TallerLivePrototype() {
         {/* Fila 2+3: Empresa — solo móvil */}
         <div className="sm:hidden text-center mt-2 mb-2">
           <p className="text-lg font-bold uppercase text-white leading-tight">AUTOMOCIÓN MENDOZA</p>
-          <p className="text-xs text-blue-400 mt-1">ALFARO · Conectado</p>
+          <p className="text-xs text-blue-400 mt-1">ALFARO</p>
         </div>
 
         {/* Fila 4: Buscador */}
@@ -1811,7 +1811,7 @@ export default function TallerLivePrototype() {
                   {(() => {
                     const next = getNextAction(job);
                     if (!next) return (
-                      <div className="mt-2 flex items-center justify-center gap-2 text-emerald-600 py-2">
+                      <div className="mt-2 flex items-center justify-center gap-2 text-emerald-500 py-2">
                         <CheckCircle size={16} />
                         <span className="text-xs font-black uppercase tracking-widest">Completado</span>
                       </div>
@@ -2563,7 +2563,7 @@ function StepIndicator({ active, icon, label, completed }: { active: boolean, ic
     )}>
       <div className={cn(
         "w-11 h-11 rounded-2xl flex items-center justify-center border-2 transition-all duration-500",
-        completed ? "bg-emerald-500 border-emerald-600 text-white shadow-lg shadow-emerald-100" : 
+        completed ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100" : 
         active ? "bg-blue-600 border-blue-700 text-white shadow-lg shadow-blue-100 scale-110" : 
         "bg-white border-slate-200 text-slate-400"
       )}>
@@ -2571,7 +2571,7 @@ function StepIndicator({ active, icon, label, completed }: { active: boolean, ic
       </div>
       <span className={cn(
         "text-[9px] font-black uppercase tracking-widest",
-        completed ? "text-emerald-600" : active ? "text-blue-600" : "text-slate-400"
+        completed ? "text-emerald-500" : active ? "text-blue-600" : "text-slate-400"
       )}>{label}</span>
     </div>
   );
