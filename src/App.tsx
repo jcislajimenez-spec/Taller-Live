@@ -1608,22 +1608,22 @@ export default function TallerLivePrototype() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="bg-[#050A1F] text-white px-5 pt-5 pb-8 rounded-b-[32px] shadow-2xl border-b-2 border-blue-500/30">
+      <header className="bg-[#050A1F] text-white px-5 pt-5 pb-10 rounded-b-[32px] shadow-2xl border-b-2 border-blue-500/30">
         {!isSupabaseConnected && (
           <div className="bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] font-bold py-1 px-3 rounded-full mb-3 text-center">
             MODO DEMO LOCAL: Los links solo funcionan en este navegador
           </div>
         )}
 
-        {/* Fila 1: Logo · Empresa · Acciones */}
-        <div className="flex items-center gap-3 mb-3">
+        {/* Fila 1: Logo · [Empresa en desktop] · Acciones */}
+        <div className="flex items-center justify-between mb-3">
           {/* Izquierda: TallerLive */}
           <div className="flex items-center gap-2 shrink-0">
             <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/40">
               <Wrench className="text-white" size={20} />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-2xl font-black tracking-tighter uppercase italic text-blue-400 leading-none">TallerLive</h1>
+              <h1 className="text-lg sm:text-xl font-black tracking-tighter uppercase italic text-blue-400 leading-none">TallerLive</h1>
               <div className="flex items-center gap-1 mt-0.5">
                 <div className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
                 <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
@@ -1633,10 +1633,10 @@ export default function TallerLivePrototype() {
             </div>
           </div>
 
-          {/* Centro: Empresa */}
-          <div className="flex-1 text-center min-w-0">
-            <p className="text-base sm:text-xl font-bold uppercase text-white leading-none">AUTOMOCIÓN MENDOZA</p>
-            <p className="text-xs sm:text-sm font-medium tracking-wide text-blue-400 mt-0.5">ALFARO</p>
+          {/* Centro: Empresa — solo desktop */}
+          <div className="hidden sm:flex flex-1 flex-col text-center min-w-0">
+            <p className="text-xl font-bold uppercase text-white leading-none">AUTOMOCIÓN MENDOZA</p>
+            <p className="text-sm text-blue-400 mt-1">ALFARO</p>
           </div>
 
           {/* Derecha: Acciones */}
@@ -1649,20 +1649,26 @@ export default function TallerLivePrototype() {
                 setTimeout(() => setIsLoading(false), 500);
               }}
               className={cn(
-                "bg-white/10 p-2.5 rounded-2xl border border-white/10 backdrop-blur-md text-blue-400 hover:bg-white/20 transition-all",
+                "bg-white/10 p-2 scale-90 rounded-2xl border border-white/10 backdrop-blur-md text-blue-400 hover:bg-white/20 transition-all",
                 isLoading && "animate-spin"
               )}
               title="Refrescar Datos"
             >
               <RefreshCw size={20} />
             </button>
-            <div className="bg-white/10 p-2.5 rounded-2xl border border-white/10 backdrop-blur-md">
+            <div className="bg-white/10 p-2 scale-90 rounded-2xl border border-white/10 backdrop-blur-md">
               <SettingsIcon className="text-blue-400" size={22} />
             </div>
           </div>
         </div>
 
-        {/* Fila 2: Buscador */}
+        {/* Fila 2+3: Empresa — solo móvil */}
+        <div className="sm:hidden text-center mt-2 mb-2">
+          <p className="text-lg font-bold uppercase text-white leading-tight">AUTOMOCIÓN MENDOZA</p>
+          <p className="text-xs text-blue-400 mt-1">ALFARO · Conectado</p>
+        </div>
+
+        {/* Fila 4: Buscador */}
         <div className="relative mt-3">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
