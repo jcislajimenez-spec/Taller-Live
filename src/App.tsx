@@ -1840,7 +1840,7 @@ export default function TallerLivePrototype() {
                             ? "bg-red-500 text-white border-red-700 animate-pulse"
                             : next.variant === 'green'
                               ? "bg-[#3FA37A] text-white border-[#2d7a5a]"
-                              : "bg-blue-700 text-white border-blue-900 hover:bg-blue-800 shadow-blue-100",
+                              : "bg-blue-700 text-white/90 border-blue-900 hover:bg-blue-800 shadow-blue-100",
                           next.action === 'audio' && isRecording && !isThisJobRecording && "opacity-30 cursor-not-allowed"
                         )}
                       >
