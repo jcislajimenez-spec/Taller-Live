@@ -1737,7 +1737,7 @@ export default function TallerLivePrototype() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="card-industrial rounded-[16px] p-3 relative overflow-hidden active:scale-[0.98] transition-transform"
+                        className="card-industrial rounded-[16px] py-3 px-4 relative overflow-hidden active:scale-[0.98] transition-transform"
                       >
                   {/* Indicador Lateral de Urgencia */}
                   <div className={cn(
@@ -1840,7 +1840,7 @@ export default function TallerLivePrototype() {
                             ? "bg-red-500 text-white border-red-700 animate-pulse"
                             : next.variant === 'green'
                               ? "bg-[#3FA37A] text-white border-[#2d7a5a]"
-                              : "bg-blue-600 text-white border-blue-800 shadow-blue-100",
+                              : "bg-blue-700 text-white border-blue-900 hover:bg-blue-800 shadow-blue-100",
                           next.action === 'audio' && isRecording && !isThisJobRecording && "opacity-30 cursor-not-allowed"
                         )}
                       >
