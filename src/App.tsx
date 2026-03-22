@@ -79,11 +79,11 @@ const UrgencyBadge = ({ urgency }: { urgency: 'low' | 'medium' | 'high' }) => {
 
 const StatusBadge = ({ status }: { status: JobStatus }) => {
   const config = {
-    awaiting_diagnosis: { label: 'En espera', color: 'bg-amber-900/40 text-amber-400 border-amber-500/30' },
-    diagnosing: { label: 'Diagnosticando', color: 'bg-blue-900/40 text-blue-400 border-blue-500/30' },
-    waiting_customer: { label: 'En espera (Cliente)', color: 'bg-orange-900/40 text-orange-400 border-orange-500/30' },
-    repairing: { label: 'En preparación', color: 'bg-indigo-900/40 text-indigo-400 border-indigo-500/30' },
-    ready: { label: 'Listo', color: 'bg-emerald-900/40 text-emerald-400 border-emerald-500/30' },
+    awaiting_diagnosis: { label: 'En espera', color: 'bg-[#3D2E10] text-amber-300 border-amber-600/40' },
+    diagnosing: { label: 'Diagnosticando', color: 'bg-[#1A2640] text-blue-300 border-blue-500/40' },
+    waiting_customer: { label: 'En espera (Cliente)', color: 'bg-[#3D2710] text-orange-300 border-orange-500/40' },
+    repairing: { label: 'En preparación', color: 'bg-[#1E1A3A] text-indigo-300 border-indigo-500/40' },
+    ready: { label: 'Listo ✓', color: 'bg-[#0F2E1A] text-emerald-400 border-emerald-500/40' },
   };
 
   const { label, color } = config[status];
@@ -1547,7 +1547,7 @@ export default function TallerLivePrototype() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B132B] text-slate-100 font-sans pb-24">
+    <div className="industrial-bg min-h-screen text-slate-100 font-sans pb-24">
       {/* Notificaciones */}
       <div className="fixed top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
         {notifications.map(n => (
@@ -1725,18 +1725,19 @@ export default function TallerLivePrototype() {
                     const groupJobs = filtered.filter(j => (group.statuses as string[]).includes(j.status));
                     if (groupJobs.length === 0) return [];
                     return [
-                      <div key={`hdr-${group.key}`} className="flex items-center gap-2 px-1 mt-3 mb-0.5">
+                      <div key={`hdr-${group.key}`} className="flex items-center gap-2 px-1 mt-3 mb-1">
                         <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{group.label}</span>
                         <div className="flex-1 h-px bg-white/10" />
                         <span className="text-[11px] font-black text-slate-500 tabular-nums">{groupJobs.length}</span>
                       </div>,
-                      ...groupJobs.map((job, index) => (
+                      <div key={`grid-${group.key}`} className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {groupJobs.map((job, index) => (
                       <motion.div
                         key={job.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="bg-[#131D3B] rounded-[20px] p-3 border border-white/10 relative overflow-hidden active:scale-[0.98] transition-transform"
+                        className="bg-[#252830] rounded-[16px] p-3 border border-white/[0.07] relative overflow-hidden active:scale-[0.98] transition-transform shadow-lg"
                       >
                   {/* Indicador Lateral de Urgencia */}
                   <div className={cn(
@@ -1771,7 +1772,7 @@ export default function TallerLivePrototype() {
                   </div>
 
                   {/* CLIENTE */}
-                  <div className="flex items-center justify-between py-1.5 px-3 bg-[#0B132B] rounded-xl border border-white/10 mb-1.5">
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-black/20 rounded-xl border border-white/[0.06] mb-1.5">
                     <div className="flex flex-col">
                       <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">Cliente</span>
                       <h3 className="text-sm font-black text-white leading-none">
@@ -1849,7 +1850,8 @@ export default function TallerLivePrototype() {
                     );
                   })()}
                 </motion.div>
-              ))
+              ))}
+              </div>
             ];
           })}
         </AnimatePresence>
@@ -2510,9 +2512,9 @@ export default function TallerLivePrototype() {
           setFormData({ plate: '', model: '', customerName: '', customerPhone: '', description: '', urgency: 'medium' });
           setIsModalOpen(true);
         }}
-        className="fixed bottom-8 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl shadow-blue-900/50 flex items-center justify-center hover:bg-blue-700 active:scale-90 transition-all z-50 border-2 border-blue-800"
+        className="fixed bottom-[88px] right-5 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-900/40 flex items-center justify-center hover:bg-blue-700 active:scale-90 transition-all z-50 border border-blue-500/50"
       >
-        <Plus size={32} />
+        <Plus size={24} />
       </button>
 
       {/* Navegación Inferior */}
@@ -2531,8 +2533,8 @@ export default function TallerLivePrototype() {
 
 function StatCard({ label, value, color }: { label: string, value: number, color: string }) {
   return (
-    <div className="bg-[#131D3B] rounded-2xl p-3 border border-white/10 text-center">
-      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{label}</p>
+    <div className="stone-card rounded-xl p-3 text-center shadow-md">
+      <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">{label}</p>
       <p className={cn("text-2xl font-black", color)}>{value}</p>
     </div>
   );
