@@ -10,17 +10,18 @@ body {
   margin: 0;
 }
 
-/* ── Global grain overlay — encima de TODO, sin bloquear clicks ──
-   opacity: 0.13 + mix-blend-mode: overlay = grain visible sin destruir legibilidad */
+/* ── Global grain overlay ──
+   screen en superficie oscura suma luminosidad al noise: visible sin ser agresivo.
+   overlay en el mismo contexto hubiera sido invisible. opacity 0.22 = desgaste natural. */
 body::after {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.13;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.22;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 256px 256px;
   background-repeat: repeat;
 }
@@ -32,13 +33,14 @@ body::after {
 }
 
 /* ── Tarjeta oscura con material ──
-   Textura vía background-blend-mode: la imagen SVG se mezcla con el background-color.
-   soft-light crea relieve sutil sobre la superficie oscura. */
+   isolation: isolate crea stacking context propio.
+   ::before con z-index: -1 se ubica entre el background-color y el contenido:
+   la textura es parte del material, no una capa encima. */
 .card-industrial {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   background-color: #27293A;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-  background-size: 150px 150px;
-  background-blend-mode: soft-light;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.55),
     0 2px 8px rgba(0, 0, 0, 0.4),
@@ -46,11 +48,26 @@ body::after {
     inset 0 -1px 0 rgba(0, 0, 0, 0.35);
 }
 
-/* ── KPI / StatCard — piedra / hormigón claro ──
-   multiply: el noise oscurece zonas de la superficie clara = efecto hormigón */
+.card-industrial::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.28;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 150px 150px;
+  background-repeat: repeat;
+}
+
+/* ── KPI / StatCard — hormigón ──
+   baseFrequency 0.62 = grano más grueso = hormigón, no ruido digital.
+   opacity 0.45 en el rect SVG = variación visible sin romper el material.
+   multiply oscurece las zonas del noise sobre la superficie clara. */
 .stone-card {
   background-color: #B6BAC6;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
   background-size: 150px 150px;
   background-blend-mode: multiply;
   box-shadow:
