@@ -1,26 +1,63 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════
-   INDUSTRIAL MATERIAL SYSTEM — FINAL (MATERIAL REAL)
+   INDUSTRIAL MATERIAL SYSTEM — FINAL PREMIUM (CANALLA)
    ═══════════════════════════════════════════════════════ */
 
 /* ── BODY ── */
 body {
-  background: radial-gradient(ellipse 78% 52% at 47% 26%, #252838 0%, #1C1E28 58%, #0F1118 100%);
+  background: radial-gradient(
+    ellipse 78% 52% at 47% 26%,
+    #252838 0%,
+    #1C1E28 58%,
+    #0F1118 100%
+  );
   margin: 0;
 }
 
-/* ── MICRO GRAIN GLOBAL (MUY SUAVE) ── */
+/* ── CAPA GLOBAL CANALLA (CLAVE FINAL) ── */
 body::after {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.12;
-  mix-blend-mode: screen;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 512px 512px;
+
+  opacity: 0.22;
+  mix-blend-mode: overlay;
+
+  background-image:
+
+    /* ruido fino */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E"),
+
+    /* rayaduras */
+    repeating-linear-gradient(
+      115deg,
+      rgba(255,255,255,0.04) 0px,
+      rgba(255,255,255,0.04) 1px,
+      transparent 2px,
+      transparent 6px
+    ),
+
+    /* desgaste tipo humo */
+    radial-gradient(
+      ellipse at 48% 42%,
+      rgba(255,255,255,0.06),
+      transparent 55%
+    ),
+
+    radial-gradient(
+      ellipse at 62% 58%,
+      rgba(0,0,0,0.08),
+      transparent 60%
+    );
+
+  background-size:
+    300px 300px,
+    auto,
+    auto,
+    auto;
 }
 
 /* ── ROOT ── */
@@ -30,7 +67,7 @@ body::after {
 }
 
 /* ═══════════════════════════════════════
-   TARJETAS — MATERIAL REAL (CLAVE)
+   TARJETAS — MATERIAL REAL
    ═══════════════════════════════════════ */
 
 .card-industrial {
@@ -40,17 +77,17 @@ body::after {
 
   background:
 
-    /* DESGASTE CENTRAL (CLAVE ABSOLUTA) */
-    radial-gradient(circle at 50% 60%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 25%, transparent 60%),
+    /* desgaste central */
+    radial-gradient(circle at 50% 60%, rgba(255,255,255,0.08), transparent 60%),
 
-    /* ZONA DE USO */
-    radial-gradient(ellipse 45% 35% at 50% 65%, rgba(255,255,255,0.06) 0%, transparent 70%),
+    /* zona de uso */
+    radial-gradient(ellipse 45% 35% at 50% 65%, rgba(255,255,255,0.06), transparent 70%),
 
-    /* SOMBRA FUERTE (PROFUNDIDAD REAL) */
-    radial-gradient(ellipse 75% 60% at 85% 90%, rgba(0,0,0,0.48) 0%, transparent 100%),
+    /* sombra */
+    radial-gradient(ellipse 75% 60% at 85% 90%, rgba(0,0,0,0.48), transparent),
 
-    /* LUZ SUPERIOR */
-    radial-gradient(ellipse 55% 35% at 30% 20%, rgba(255,255,255,0.10) 0%, transparent 100%),
+    /* luz */
+    radial-gradient(ellipse 55% 35% at 30% 20%, rgba(255,255,255,0.14), transparent),
 
     linear-gradient(152deg, #272A3D 0%, #222535 100%);
 
@@ -61,13 +98,14 @@ body::after {
     inset 0 -2px 0 rgba(0,0,0,0.4);
 }
 
-/* ── MICRO RAYADURAS (CLAVE PREMIUM) ── */
+/* ── MICRO RAYADO ── */
 .card-industrial::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: -1;
+
   opacity: 0.18;
   mix-blend-mode: overlay;
 
@@ -89,23 +127,23 @@ body::after {
 }
 
 /* ═══════════════════════════════════════
-   KPI — HORMIGÓN REAL
+   KPI — HORMIGÓN
    ═══════════════════════════════════════ */
 
 .stone-card {
   background:
 
-    /* DESGASTE CENTRAL */
-    radial-gradient(circle at 50% 55%, rgba(255,255,255,0.20) 0%, transparent 60%),
+    /* desgaste */
+    radial-gradient(circle at 50% 55%, rgba(255,255,255,0.22), transparent 60%),
 
-    /* LUZ DIFUSA */
-    radial-gradient(ellipse 65% 45% at 30% 20%, rgba(255,255,255,0.34) 0%, transparent 100%),
+    /* luz */
+    radial-gradient(ellipse 65% 45% at 30% 20%, rgba(255,255,255,0.34), transparent),
 
-    /* SOMBRA */
-    radial-gradient(ellipse 50% 70% at 75% 80%, rgba(0,0,0,0.20) 0%, transparent 100%),
+    /* sombra */
+    radial-gradient(ellipse 50% 70% at 75% 80%, rgba(0,0,0,0.20), transparent),
 
-    /* MICRO TEXTURA */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.15'/%3E%3C/svg%3E"),
+    /* textura */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.18'/%3E%3C/svg%3E"),
 
     linear-gradient(168deg, #C3C6D0 0%, #ACAFBB 100%);
 
