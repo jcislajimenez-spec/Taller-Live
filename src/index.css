@@ -4,46 +4,54 @@
    INDUSTRIAL MATERIAL SYSTEM
    ═══════════════════════════════════════════════════════ */
 
-/* ── Base body ── */
+/* ── Base body ──
+   Elipse asimétrica (78% × 52%) ligeramente descentrada (47% 26%).
+   Centro más claro = fuente de luz ambiental. Bordes más oscuros = profundidad. */
 body {
-  background-color: #1C1E28;
+  background: radial-gradient(ellipse 78% 52% at 47% 26%, #252838 0%, #1C1E28 58%, #0F1118 100%);
   margin: 0;
 }
 
 /* ── Global grain overlay ──
-   opacity: 0.30 / mix-blend-mode: screen
-   feComposite: 65% grano fino + 35% zona lenta anisótropa
-   feComponentTransfer slope=1.8 intercept=-0.4: amplifica contraste del noise
-   sin quemar zonas extremas (0.22→0, 0.5→0.5, 0.78→1) */
+   Micro-grano secundario. screen sobre oscuro = visible sin ensuciar.
+   opacity 0.15: solo añade rugosidad superficial al fondo. */
 body::after {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.30;
+  opacity: 0.15;
   mix-blend-mode: screen;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' seed='3' stitchTiles='stitch' result='g'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.015' numOctaves='2' seed='11' stitchTiles='stitch' result='z'/%3E%3CfeComposite in='g' in2='z' operator='arithmetic' k1='0' k2='0.65' k3='0.35' k4='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='1.8' intercept='-0.4'/%3E%3CfeFuncG type='linear' slope='1.8' intercept='-0.4'/%3E%3CfeFuncB type='linear' slope='1.8' intercept='-0.4'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' seed='3' stitchTiles='stitch' result='g'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.015' numOctaves='2' seed='11' stitchTiles='stitch' result='z'/%3E%3CfeComposite in='g' in2='z' operator='arithmetic' k1='0' k2='0.65' k3='0.35' k4='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 512px 512px;
   background-repeat: repeat;
 }
 
 /* ── Root container ── */
 .industrial-bg {
-  background-color: #1C1E28;
+  background: transparent;
   min-height: 100vh;
 }
 
-/* ── Tarjeta oscura ──
-   ::before opacity: 0.40 / mix-blend-mode: overlay
-   overlay sobre oscuro usa screen para píxeles claros del noise → más brillo visible
-   feComponentTransfer slope=1.6 intercept=-0.35: contraste moderado,
-   no compite con el contenido de la tarjeta */
+/* ── Tarjeta oscura — chapa industrial ──
+   Material viene de la luz, no del noise.
+   Capas (fondo → frente):
+   1. linear-gradient: rango mínimo (~6pt luminancia), solo ancla el tono base
+   2. radial highlight (ellipse 55%×38% at 23% 18%): luz desde arriba-izquierda
+   3. radial shadow (ellipse 68%×52% at 83% 87%): sombra profunda abajo-derecha
+   4. radial ruptura (ellipse 38%×62% at 54% 44%, 0.04): rompe simetría central
+   Elipses x≠y, posiciones irregulares: ningún eje de simetría evidente.
+   ::before con noise a 0.12 overlay: solo micro-textura, no protagonista. */
 .card-industrial {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background-color: #27293A;
+  background:
+    radial-gradient(ellipse 38% 62% at 54% 44%, rgba(255,255,255,0.04) 0%, transparent 100%),
+    radial-gradient(ellipse 68% 52% at 83% 87%, rgba(0,0,0,0.38) 0%, transparent 100%),
+    radial-gradient(ellipse 55% 38% at 23% 18%, rgba(255,255,255,0.14) 0%, transparent 100%),
+    linear-gradient(152deg, #272A3D 0%, #222535 100%);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.55),
     0 2px 8px rgba(0, 0, 0, 0.4),
@@ -57,23 +65,32 @@ body::after {
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.40;
+  opacity: 0.12;
   mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' seed='5' stitchTiles='stitch' result='g'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.028 0.02' numOctaves='2' seed='9' stitchTiles='stitch' result='z'/%3E%3CfeComposite in='g' in2='z' operator='arithmetic' k1='0.15' k2='0.55' k3='0.3' k4='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='1.6' intercept='-0.35'/%3E%3CfeFuncG type='linear' slope='1.6' intercept='-0.35'/%3E%3CfeFuncB type='linear' slope='1.6' intercept='-0.35'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' seed='5' stitchTiles='stitch' result='g'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.028 0.02' numOctaves='2' seed='9' stitchTiles='stitch' result='z'/%3E%3CfeComposite in='g' in2='z' operator='arithmetic' k1='0.15' k2='0.55' k3='0.3' k4='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 200px 200px;
   background-repeat: repeat;
 }
 
 /* ── KPI / StatCard — hormigón ──
-   rect opacity: 0.60 / background-blend-mode: multiply
-   feComponentTransfer slope=2.0 intercept=-0.5: contraste más marcado
-   que card-industrial porque la superficie clara aguanta más variación
-   sin perder legibilidad */
+   Material viene del color y la luz, no del noise.
+   Capas (fondo → frente):
+   1. linear-gradient: rango pequeño, base tonal fría
+   2. radial highlight (ellipse 62%×44% at 27% 22%, 0.28): luz difusa superficie matte
+   3. radial shadow (ellipse 48%×66% at 73% 78%, 0.18): sombra asimétrica
+   4. radial ruptura (ellipse 42%×32% at 49% 57%, 0.06): variación micro-tonal central
+   El highlight (0.28) es más fuerte que en card-industrial:
+   hormigón matte refleja más luz difusa que metal oscuro.
+   Noise multiply a 0.20: solo micro-rugosidad de superficie. */
 .stone-card {
-  background-color: #B6BAC6;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='4' seed='7' stitchTiles='stitch' result='g'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.022 0.016' numOctaves='3' seed='14' stitchTiles='stitch' result='z'/%3E%3CfeComposite in='g' in2='z' operator='arithmetic' k1='0.2' k2='0.5' k3='0.3' k4='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.0' intercept='-0.5'/%3E%3CfeFuncG type='linear' slope='2.0' intercept='-0.5'/%3E%3CfeFuncB type='linear' slope='2.0' intercept='-0.5'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.60'/%3E%3C/svg%3E");
-  background-size: 200px 200px;
-  background-blend-mode: multiply;
+  background:
+    radial-gradient(ellipse 42% 32% at 49% 57%, rgba(0,0,0,0.06) 0%, transparent 100%),
+    radial-gradient(ellipse 48% 66% at 73% 78%, rgba(0,0,0,0.18) 0%, transparent 100%),
+    radial-gradient(ellipse 62% 44% at 27% 22%, rgba(255,255,255,0.34) 0%, transparent 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='4' seed='7' stitchTiles='stitch' result='g'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.022 0.016' numOctaves='3' seed='14' stitchTiles='stitch' result='z'/%3E%3CfeComposite in='g' in2='z' operator='arithmetic' k1='0.2' k2='0.5' k3='0.3' k4='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.20'/%3E%3C/svg%3E"),
+    linear-gradient(168deg, #C3C6D0 0%, #ACAFBB 100%);
+  background-size: auto, auto, auto, 200px 200px, auto;
+  background-blend-mode: normal, normal, normal, multiply, normal;
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.45),
     inset 0 2px 0 rgba(255, 255, 255, 0.5),
