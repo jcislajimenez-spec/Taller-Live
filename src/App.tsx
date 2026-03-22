@@ -79,11 +79,11 @@ const UrgencyBadge = ({ urgency }: { urgency: 'low' | 'medium' | 'high' }) => {
 
 const StatusBadge = ({ status }: { status: JobStatus }) => {
   const config = {
-    awaiting_diagnosis: { label: 'En espera', color: 'bg-[#3D2E10] text-amber-300 border-amber-600/40' },
-    diagnosing: { label: 'Diagnosticando', color: 'bg-[#1A2640] text-blue-300 border-blue-500/40' },
-    waiting_customer: { label: 'En espera (Cliente)', color: 'bg-[#3D2710] text-orange-300 border-orange-500/40' },
-    repairing: { label: 'En preparación', color: 'bg-[#1E1A3A] text-indigo-300 border-indigo-500/40' },
-    ready: { label: 'Listo ✓', color: 'bg-[#0F2E1A] text-emerald-400 border-emerald-500/40' },
+    awaiting_diagnosis: { label: 'En espera', color: 'bg-[#E8D4A0] text-[#6B4F2A] border-[#C4A97A]' },
+    diagnosing: { label: 'Diagnosticando', color: 'bg-[#E8D4A0] text-[#6B4F2A] border-[#C4A97A]' },
+    waiting_customer: { label: 'En espera (Cliente)', color: 'bg-[#E8D4A0] text-[#6B4F2A] border-[#C4A97A]' },
+    repairing: { label: 'En preparación', color: 'bg-[#E8D4A0] text-[#6B4F2A] border-[#C4A97A]' },
+    ready: { label: 'Listo ✓', color: 'bg-[#C8E6C4] text-[#2E5E35] border-[#7AB87A]' },
   };
 
   const { label, color } = config[status];
@@ -1547,7 +1547,7 @@ export default function TallerLivePrototype() {
   }
 
   return (
-    <div className="industrial-bg min-h-screen text-slate-100 font-sans pb-24">
+    <div className="industrial-bg min-h-screen text-slate-100 font-sans pb-20">
       {/* Notificaciones */}
       <div className="fixed top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
         {notifications.map(n => (
@@ -1683,9 +1683,9 @@ export default function TallerLivePrototype() {
 
       {/* Estadísticas Rápidas - Más compactas */}
       <div className="px-5 -mt-5 grid grid-cols-3 gap-3">
-        <StatCard label="En Taller" value={jobs.length} color="text-blue-500" />
-        <StatCard label="Pendientes" value={jobs.filter(j => j.status === 'diagnosing' || j.status === 'waiting_customer' || j.status === 'awaiting_diagnosis').length} color="text-amber-500" />
-        <StatCard label="Listos" value={jobs.filter(j => j.status === 'ready').length} color="text-emerald-500" />
+        <StatCard label="En Taller" value={jobs.length} color="text-blue-700" />
+        <StatCard label="Pendientes" value={jobs.filter(j => j.status === 'diagnosing' || j.status === 'waiting_customer' || j.status === 'awaiting_diagnosis').length} color="text-orange-600" />
+        <StatCard label="Listos" value={jobs.filter(j => j.status === 'ready').length} color="text-[#2E6B40]" />
       </div>
 
       {/* Lista de Trabajos - Más densa y visual */}
@@ -2512,18 +2512,18 @@ export default function TallerLivePrototype() {
           setFormData({ plate: '', model: '', customerName: '', customerPhone: '', description: '', urgency: 'medium' });
           setIsModalOpen(true);
         }}
-        className="fixed bottom-[88px] right-5 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-900/40 flex items-center justify-center hover:bg-blue-700 active:scale-90 transition-all z-50 border border-blue-500/50"
+        className="fixed bottom-[68px] right-5 w-11 h-11 text-white rounded-full flex items-center justify-center active:scale-90 transition-all z-50"
+        style={{ background: 'linear-gradient(145deg, #3a4060, #1e2030)', boxShadow: '0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)' }}
       >
         <Plus size={24} />
       </button>
 
       {/* Navegación Inferior */}
-      <nav className="fixed bottom-0 inset-x-0 bg-[#0B132B]/95 backdrop-blur-lg border-t border-white/10 h-20 flex items-center justify-around px-6 z-40">
-        <NavItem icon={<Wrench size={22} />} label="Taller" active={activeTab === 'taller'} onClick={() => setActiveTab('taller')} />
-        <NavItem icon={<Clock size={22} />} label="Historial" active={activeTab === 'historial'} onClick={() => setActiveTab('historial')} />
-        <div className="w-12" /> {/* Espacio para el botón flotante */}
-        <NavItem icon={<Phone size={22} />} label="Clientes" active={activeTab === 'clientes'} onClick={() => setActiveTab('clientes')} />
-        <NavItem icon={<SettingsIcon size={22} />} label="Ajustes" active={activeTab === 'ajustes'} onClick={() => setActiveTab('ajustes')} />
+      <nav className="fixed bottom-0 inset-x-0 bg-[#14151F]/98 backdrop-blur-lg border-t border-white/[0.08] h-[60px] flex items-center justify-around px-8 z-40">
+        <NavItem icon={<Wrench size={20} />} label="Taller" active={activeTab === 'taller'} onClick={() => setActiveTab('taller')} />
+        <NavItem icon={<Clock size={20} />} label="Historial" active={activeTab === 'historial'} onClick={() => setActiveTab('historial')} />
+        <NavItem icon={<Phone size={20} />} label="Clientes" active={activeTab === 'clientes'} onClick={() => setActiveTab('clientes')} />
+        <NavItem icon={<SettingsIcon size={20} />} label="Ajustes" active={activeTab === 'ajustes'} onClick={() => setActiveTab('ajustes')} />
       </nav>
     </div>
   );
@@ -2534,8 +2534,8 @@ export default function TallerLivePrototype() {
 function StatCard({ label, value, color }: { label: string, value: number, color: string }) {
   return (
     <div className="stone-card rounded-xl p-3 text-center shadow-md">
-      <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">{label}</p>
-      <p className={cn("text-2xl font-black", color)}>{value}</p>
+      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">{label}</p>
+      <p className={cn("text-3xl font-black leading-none", color)}>{value}</p>
     </div>
   );
 }
