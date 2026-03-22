@@ -1,31 +1,60 @@
 @import "tailwindcss";
 
-/* ── Textura industrial global ─────────────────────────── */
+/* ═══════════════════════════════════════════════════════
+   INDUSTRIAL MATERIAL SYSTEM
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Base body ── */
 body {
-  background-color: #1A1C26;
+  background-color: #1C1E28;
+  margin: 0;
 }
 
-/* Noise grain layer over the root */
-.industrial-bg {
-  position: relative;
-  background-color: #1A1C26;
-}
-.industrial-bg::before {
+/* ── Global grain overlay — encima de TODO, sin bloquear clicks ──
+   opacity: 0.13 + mix-blend-mode: overlay = grain visible sin destruir legibilidad */
+body::after {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
+  z-index: 9999;
+  opacity: 0.13;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
   background-repeat: repeat;
 }
-.industrial-bg > * {
-  position: relative;
-  z-index: 1;
+
+/* ── Root container ── */
+.industrial-bg {
+  background-color: #1C1E28;
+  min-height: 100vh;
 }
 
-/* StatCard stone texture */
+/* ── Tarjeta oscura con material ──
+   Textura vía background-blend-mode: la imagen SVG se mezcla con el background-color.
+   soft-light crea relieve sutil sobre la superficie oscura. */
+.card-industrial {
+  background-color: #27293A;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 150px 150px;
+  background-blend-mode: soft-light;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* ── KPI / StatCard — piedra / hormigón claro ──
+   multiply: el noise oscurece zonas de la superficie clara = efecto hormigón */
 .stone-card {
-  background-color: #B8BBC8;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
+  background-color: #B6BAC6;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  background-size: 150px 150px;
+  background-blend-mode: multiply;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.45),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25);
 }

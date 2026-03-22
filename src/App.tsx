@@ -129,16 +129,16 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
               >
                 <div className={cn(
                   "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-200",
-                  isDone   && "bg-emerald-500 border-emerald-500 text-white",
-                  isActive && "bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100",
-                  !isDone && !isActive && "bg-[#0B132B] border-slate-600 text-slate-500"
+                  isDone   && "bg-[#3FA37A] border-[#3FA37A] text-white",
+                  isActive && "bg-blue-700 border-blue-700 text-white ring-2 ring-blue-900",
+                  !isDone && !isActive && "bg-[#1C1E28] border-slate-600 text-slate-500"
                 )}>
                   {isDone ? <Check size={18} /> : <Icon size={18} />}
                 </div>
                 <span className={cn(
                   "text-[10px] font-black uppercase tracking-wide leading-none",
-                  isDone   && "text-emerald-500",
-                  isActive && "text-blue-600",
+                  isDone   && "text-[#3FA37A]",
+                  isActive && "text-blue-400",
                   !isDone && !isActive && "text-slate-400"
                 )}>
                   {label}
@@ -147,7 +147,7 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
               {i < WORKFLOW_STEPS.length - 1 && (
                 <div className={cn(
                   "h-px flex-1 mb-4 mx-0.5 transition-colors duration-300",
-                  done[i] ? "bg-emerald-500" : "bg-slate-600"
+                  done[i] ? "bg-[#3FA37A]" : "bg-slate-600/60"
                 )} />
               )}
             </React.Fragment>
@@ -157,8 +157,8 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
       <div className="flex items-center gap-2">
         <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
           <div
-            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-            style={{ width: `${(completedCount / 4) * 100}%` }}
+            className="h-full rounded-full transition-all duration-500"
+            style={{ backgroundColor: '#3FA37A', width: `${(completedCount / 4) * 100}%` }}
           />
         </div>
         <span className="text-sm font-black text-slate-500 shrink-0 tabular-nums">
@@ -1608,7 +1608,7 @@ export default function TallerLivePrototype() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="bg-[#050A1F] text-white px-5 pt-5 pb-10 rounded-b-[32px] shadow-2xl border-b-2 border-blue-500/30">
+      <header className="bg-[#14151F] text-white px-5 pt-5 pb-10 rounded-b-[28px] shadow-2xl border-b border-white/[0.08]">
         {!isSupabaseConnected && (
           <div className="bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] font-bold py-1 px-3 rounded-full mb-3 text-center">
             MODO DEMO LOCAL: Los links solo funcionan en este navegador
@@ -1737,7 +1737,7 @@ export default function TallerLivePrototype() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="bg-[#252830] rounded-[16px] p-3 border border-white/[0.07] relative overflow-hidden active:scale-[0.98] transition-transform shadow-lg"
+                        className="card-industrial rounded-[16px] p-3 relative overflow-hidden active:scale-[0.98] transition-transform"
                       >
                   {/* Indicador Lateral de Urgencia */}
                   <div className={cn(
@@ -1812,7 +1812,7 @@ export default function TallerLivePrototype() {
                   {(() => {
                     const next = getNextAction(job);
                     if (!next) return (
-                      <div className="mt-2 flex items-center justify-center gap-2 text-emerald-500 py-2">
+                      <div className="mt-2 flex items-center justify-center gap-2 py-2" style={{ color: '#3FA37A' }}>
                         <CheckCircle size={16} />
                         <span className="text-xs font-black uppercase tracking-widest">Completado</span>
                       </div>
@@ -1839,7 +1839,7 @@ export default function TallerLivePrototype() {
                           next.action === 'audio' && isThisJobRecording
                             ? "bg-red-500 text-white border-red-700 animate-pulse"
                             : next.variant === 'green'
-                              ? "bg-emerald-500 text-white border-emerald-700 shadow-emerald-100"
+                              ? "bg-[#3FA37A] text-white border-[#2d7a5a]"
                               : "bg-blue-600 text-white border-blue-800 shadow-blue-100",
                           next.action === 'audio' && isRecording && !isThisJobRecording && "opacity-30 cursor-not-allowed"
                         )}
