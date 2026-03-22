@@ -11,18 +11,20 @@ body {
 }
 
 /* ── Global grain overlay ──
-   screen en superficie oscura suma luminosidad al noise: visible sin ser agresivo.
-   overlay en el mismo contexto hubiera sido invisible. opacity 0.22 = desgaste natural. */
+   opacity: 0.30 / mix-blend-mode: screen
+   feComposite: 65% grano fino + 35% zona lenta anisótropa
+   feComponentTransfer slope=1.8 intercept=-0.4: amplifica contraste del noise
+   sin quemar zonas extremas (0.22→0, 0.5→0.5, 0.78→1) */
 body::after {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.22;
+  opacity: 0.30;
   mix-blend-mode: screen;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 256px 256px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' seed='3' stitchTiles='stitch' result='g'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.015' numOctaves='2' seed='11' stitchTiles='stitch' result='z'/%3E%3CfeComposite in='g' in2='z' operator='arithmetic' k1='0' k2='0.65' k3='0.35' k4='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='1.8' intercept='-0.4'/%3E%3CfeFuncG type='linear' slope='1.8' intercept='-0.4'/%3E%3CfeFuncB type='linear' slope='1.8' intercept='-0.4'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 512px 512px;
   background-repeat: repeat;
 }
 
@@ -32,10 +34,11 @@ body::after {
   min-height: 100vh;
 }
 
-/* ── Tarjeta oscura con material ──
-   isolation: isolate crea stacking context propio.
-   ::before con z-index: -1 se ubica entre el background-color y el contenido:
-   la textura es parte del material, no una capa encima. */
+/* ── Tarjeta oscura ──
+   ::before opacity: 0.40 / mix-blend-mode: overlay
+   overlay sobre oscuro usa screen para píxeles claros del noise → más brillo visible
+   feComponentTransfer slope=1.6 intercept=-0.35: contraste moderado,
+   no compite con el contenido de la tarjeta */
 .card-industrial {
   position: relative;
   overflow: hidden;
@@ -54,21 +57,22 @@ body::after {
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.28;
-  mix-blend-mode: soft-light;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 150px 150px;
+  opacity: 0.40;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' seed='5' stitchTiles='stitch' result='g'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.028 0.02' numOctaves='2' seed='9' stitchTiles='stitch' result='z'/%3E%3CfeComposite in='g' in2='z' operator='arithmetic' k1='0.15' k2='0.55' k3='0.3' k4='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='1.6' intercept='-0.35'/%3E%3CfeFuncG type='linear' slope='1.6' intercept='-0.35'/%3E%3CfeFuncB type='linear' slope='1.6' intercept='-0.35'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
   background-repeat: repeat;
 }
 
 /* ── KPI / StatCard — hormigón ──
-   baseFrequency 0.62 = grano más grueso = hormigón, no ruido digital.
-   opacity 0.45 en el rect SVG = variación visible sin romper el material.
-   multiply oscurece las zonas del noise sobre la superficie clara. */
+   rect opacity: 0.60 / background-blend-mode: multiply
+   feComponentTransfer slope=2.0 intercept=-0.5: contraste más marcado
+   que card-industrial porque la superficie clara aguanta más variación
+   sin perder legibilidad */
 .stone-card {
   background-color: #B6BAC6;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
-  background-size: 150px 150px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='4' seed='7' stitchTiles='stitch' result='g'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.022 0.016' numOctaves='3' seed='14' stitchTiles='stitch' result='z'/%3E%3CfeComposite in='g' in2='z' operator='arithmetic' k1='0.2' k2='0.5' k3='0.3' k4='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.0' intercept='-0.5'/%3E%3CfeFuncG type='linear' slope='2.0' intercept='-0.5'/%3E%3CfeFuncB type='linear' slope='2.0' intercept='-0.5'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.60'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
   background-blend-mode: multiply;
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.45),
