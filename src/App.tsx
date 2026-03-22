@@ -31,7 +31,7 @@ import { transcribeAndDiagnose, isGeminiConfigured } from './services/geminiServ
 import { AudioRecorder } from './services/audioService';
 
 // --- Tipos ---
-type JobStatus = 'awaiting_diagnosis' | 'diagnosing' | 'waiting_customer' | 'repairing' | 'ready';
+type JobStatus = 'waiting' | 'diagnosed' | 'waiting_customer' | 'repairing' | 'ready' | 'awaiting_diagnosis' | 'diagnosing';
 type Urgency = 'low' | 'medium' | 'high';
 
 // --- Datos de Prueba (Fallback) ---
@@ -42,7 +42,7 @@ const MOCK_JOBS: any[] = [
     model: 'Volkswagen Golf GTI',
     customer: 'Carlos Rodríguez',
     customerPhone: '600000001',
-    status: 'diagnosing',
+    status: 'waiting',
     urgency: 'high',
     entryTime: '08:30',
     description: 'Pérdida de potencia y humo blanco.'
@@ -53,7 +53,7 @@ const MOCK_JOBS: any[] = [
     model: 'Toyota Corolla',
     customer: 'Elena Martínez',
     customerPhone: '600000002',
-    status: 'pending_approval',
+    status: 'waiting_customer',
     urgency: 'medium',
     entryTime: '09:15',
     description: 'Revisión 60.000km y ruido en frenos.'
@@ -78,12 +78,16 @@ const UrgencyBadge = ({ urgency }: { urgency: 'low' | 'medium' | 'high' }) => {
 };
 
 const StatusBadge = ({ status }: { status: JobStatus }) => {
-  const config = {
-    awaiting_diagnosis: { label: 'En espera', color: 'bg-[#E8D4A0] text-[#6B4F2A] border-[#C4A97A]' },
-    diagnosing: { label: 'Diagnosticando', color: 'bg-[#E8D4A0] text-[#6B4F2A] border-[#C4A97A]' },
-    waiting_customer: { label: 'En espera (Cliente)', color: 'bg-[#E8D4A0] text-[#6B4F2A] border-[#C4A97A]' },
-    repairing: { label: 'En preparación', color: 'bg-[#E8D4A0] text-[#6B4F2A] border-[#C4A97A]' },
-    ready: { label: 'Listo ✓', color: 'bg-[#C8E6C4] text-[#2E5E35] border-[#7AB87A]' },
+  const config: Record<string, { label: string; color: string }> = {
+    // Estados actuales
+    waiting:          { label: 'En espera',         color: 'bg-[#EDEDED] text-[#787878] border-[#D0D0D0]' },
+    diagnosed:        { label: 'Diagnosticado',      color: 'bg-[#F0EBE0] text-[#7B6347] border-[#D4C4A0]' },
+    waiting_customer: { label: 'En espera cliente',  color: 'bg-[#F2E8D0] text-[#7A5C2A] border-[#CDAC70]' },
+    repairing:        { label: 'En preparación',     color: 'bg-[#D5E2F0] text-[#2E4870] border-[#7AAAD0]' },
+    ready:            { label: 'Listo ✓',            color: 'bg-[#C8E6C4] text-[#2E5E35] border-[#7AB87A]' },
+    // Legado (datos existentes en BD)
+    awaiting_diagnosis: { label: 'En espera',        color: 'bg-[#EDEDED] text-[#787878] border-[#D0D0D0]' },
+    diagnosing:         { label: 'En espera',        color: 'bg-[#EDEDED] text-[#787878] border-[#D0D0D0]' },
   };
 
   const { label, color } = config[status];
@@ -774,7 +778,7 @@ export default function TallerLivePrototype() {
       if (mediaError) throw mediaError;
 
       // 4. Actualizar status
-      await supabase.from('orders').update({ status: 'diagnosing' }).eq('id', jobId);
+      await supabase.from('orders').update({ status: 'waiting' }).eq('id', jobId);
 
       // 5. CLAVE: Re-fetch este job desde Supabase (fuente de verdad)
       await refreshSingleJob(jobId);
@@ -846,7 +850,6 @@ export default function TallerLivePrototype() {
       // 1. Feedback inmediato: marcar como "procesando" (SIN guardar base64 en state)
       setJobs(prev => prev.map(j => j.id === jobId ? {
         ...j,
-        status: j.status === 'awaiting_diagnosis' ? 'diagnosing' : j.status,
         aiDiagnosis: "Procesando diagnóstico con IA..."
       } : j));
 
@@ -898,7 +901,7 @@ export default function TallerLivePrototype() {
 
           await supabase.from('orders').update({
             description: professionalText,
-            status: 'diagnosing'
+            status: 'waiting'
           }).eq('id', jobId);
 
           // 4. CLAVE: Re-fetch desde Supabase (fuente de verdad)
@@ -939,10 +942,12 @@ export default function TallerLivePrototype() {
     if (activeJobId) {
       const budgetToSave = budgetAmount || '0';
       const diagnosisToSave = diagnosisText;
+      const currentJob = jobs.find(j => j.id === activeJobId);
+      const shouldAdvance = ['waiting', 'awaiting_diagnosis', 'diagnosing'].includes(currentJob?.status || '');
 
       setJobs(prevJobs => prevJobs.map(job =>
         job.id === activeJobId
-          ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave }
+          ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosed' } : {}) }
           : job
       ));
 
@@ -950,7 +955,7 @@ export default function TallerLivePrototype() {
         try {
           await supabase
             .from('orders')
-            .update({ budget: parseFloat(budgetToSave), description: diagnosisToSave })
+            .update({ budget: parseFloat(budgetToSave), description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosed' } : {}) })
             .eq('id', activeJobId);
         } catch (e) {
           console.error('Error sincronizando presupuesto:', e);
@@ -1205,7 +1210,7 @@ export default function TallerLivePrototype() {
           .insert([{ 
             vehicle_id: vehicleId, 
             customer_id: customerId,
-            status: 'awaiting_diagnosis', 
+            status: 'waiting',
             urgency: formData.urgency,
             description: formData.description,
             public_token: generateUUID(),
@@ -1228,7 +1233,7 @@ export default function TallerLivePrototype() {
           model: formData.model,
           customer: formData.customerName,
           customerPhone: formData.customerPhone,
-          status: 'awaiting_diagnosis',
+          status: 'waiting',
           urgency: formData.urgency,
           entryTime: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           description: formData.description,
@@ -1254,7 +1259,7 @@ export default function TallerLivePrototype() {
         model: formData.model,
         customer: formData.customerName,
         customerPhone: formData.customerPhone,
-        status: 'awaiting_diagnosis',
+        status: 'waiting',
         urgency: formData.urgency,
         entryTime: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         description: formData.description,
@@ -1398,16 +1403,10 @@ export default function TallerLivePrototype() {
               </div>
             )}
 
-            <div className="bg-blue-50 p-4 rounded-2xl mb-6">
-              <p className="text-blue-700 text-xs font-bold uppercase tracking-widest">Próximo paso:</p>
-              <p className="text-blue-900 text-sm font-black mt-1">Le avisaremos por WhatsApp cuando el coche esté listo.</p>
-            </div>
-            <button 
-              onClick={() => window.location.href = `tel:601105816`}
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2"
-            >
-              <Phone size={16} /> Llamar al Taller
-            </button>
+            <p className="text-slate-500 text-sm leading-relaxed">
+              Le avisaremos por WhatsApp cuando el coche esté listo.<br />
+              Para cualquier aclaración adicional, puede ponerse en contacto con nosotros.
+            </p>
           </motion.div>
         </div>
       );
@@ -1684,7 +1683,7 @@ export default function TallerLivePrototype() {
       {/* Estadísticas Rápidas - Más compactas */}
       <div className="px-5 -mt-5 grid grid-cols-3 gap-3">
         <StatCard label="En Taller" value={jobs.length} color="text-blue-700" />
-        <StatCard label="Pendientes" value={jobs.filter(j => j.status === 'diagnosing' || j.status === 'waiting_customer' || j.status === 'awaiting_diagnosis').length} color="text-orange-600" />
+        <StatCard label="Pendientes" value={jobs.filter(j => ['waiting', 'diagnosed', 'waiting_customer', 'awaiting_diagnosis', 'diagnosing'].includes(j.status)).length} color="text-orange-600" />
         <StatCard label="Listos" value={jobs.filter(j => j.status === 'ready').length} color="text-[#2E6B40]" />
       </div>
 
@@ -1714,10 +1713,11 @@ export default function TallerLivePrototype() {
                 (j.customer || '').toLowerCase().includes((filter || '').toLowerCase())
               );
               const groups = [
-                { key: 'diagnosis',  label: 'En diagnóstico',        statuses: ['awaiting_diagnosis', 'diagnosing'] },
-                { key: 'validation', label: 'Pendiente validación',   statuses: ['waiting_customer'] },
-                { key: 'repairing',  label: 'En reparación',          statuses: ['repairing'] },
-                { key: 'ready',      label: 'Listos para entrega',     statuses: ['ready'] },
+                { key: 'waiting',    label: 'En espera',             statuses: ['waiting', 'awaiting_diagnosis', 'diagnosing'] },
+                { key: 'diagnosed',  label: 'Diagnosticados',         statuses: ['diagnosed'] },
+                { key: 'validation', label: 'En espera del cliente',  statuses: ['waiting_customer'] },
+                { key: 'repairing',  label: 'En preparación',         statuses: ['repairing'] },
+                { key: 'ready',      label: 'Listos para entrega',    statuses: ['ready'] },
               ];
               return (
                 <AnimatePresence>
