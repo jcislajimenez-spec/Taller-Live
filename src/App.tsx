@@ -65,7 +65,7 @@ const MOCK_JOBS: any[] = [
 const UrgencyBadge = ({ urgency }: { urgency: 'low' | 'medium' | 'high' }) => {
   const config = {
     low: { label: 'Baja', color: 'bg-slate-100 text-slate-600 border-slate-200' },
-    medium: { label: 'Media', color: 'bg-blue-100 text-blue-600 border-blue-200' },
+    medium: { label: 'Media', color: 'bg-blue-900/40 text-blue-400 border-blue-200' },
     high: { label: 'Alta', color: 'bg-red-100 text-red-600 border-red-200' },
   };
 
@@ -79,11 +79,11 @@ const UrgencyBadge = ({ urgency }: { urgency: 'low' | 'medium' | 'high' }) => {
 
 const StatusBadge = ({ status }: { status: JobStatus }) => {
   const config = {
-    awaiting_diagnosis: { label: 'En espera', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-    diagnosing: { label: 'Diagnosticando', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-    waiting_customer: { label: 'En espera (Cliente)', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-    repairing: { label: 'En preparación', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
-    ready: { label: 'Listo', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    awaiting_diagnosis: { label: 'En espera', color: 'bg-amber-900/40 text-amber-400 border-amber-500/30' },
+    diagnosing: { label: 'Diagnosticando', color: 'bg-blue-900/40 text-blue-400 border-blue-500/30' },
+    waiting_customer: { label: 'En espera (Cliente)', color: 'bg-orange-900/40 text-orange-400 border-orange-500/30' },
+    repairing: { label: 'En preparación', color: 'bg-indigo-900/40 text-indigo-400 border-indigo-500/30' },
+    ready: { label: 'Listo', color: 'bg-emerald-900/40 text-emerald-400 border-emerald-500/30' },
   };
 
   const { label, color } = config[status];
@@ -131,7 +131,7 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
                   "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-200",
                   isDone   && "bg-emerald-500 border-emerald-500 text-white",
                   isActive && "bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100",
-                  !isDone && !isActive && "bg-white border-slate-300 text-slate-400"
+                  !isDone && !isActive && "bg-[#0B132B] border-slate-600 text-slate-500"
                 )}>
                   {isDone ? <Check size={18} /> : <Icon size={18} />}
                 </div>
@@ -147,7 +147,7 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
               {i < WORKFLOW_STEPS.length - 1 && (
                 <div className={cn(
                   "h-px flex-1 mb-4 mx-0.5 transition-colors duration-300",
-                  done[i] ? "bg-emerald-500" : "bg-slate-200"
+                  done[i] ? "bg-emerald-500" : "bg-slate-600"
                 )} />
               )}
             </React.Fragment>
@@ -155,13 +155,13 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
         })}
       </div>
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+        <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-emerald-500 rounded-full transition-all duration-500"
             style={{ width: `${(completedCount / 4) * 100}%` }}
           />
         </div>
-        <span className="text-sm font-black text-slate-400 shrink-0 tabular-nums">
+        <span className="text-sm font-black text-slate-500 shrink-0 tabular-nums">
           {completedCount}/4
         </span>
       </div>
@@ -1547,7 +1547,7 @@ export default function TallerLivePrototype() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans pb-24">
+    <div className="min-h-screen bg-[#0B132B] text-slate-100 font-sans pb-24">
       {/* Notificaciones */}
       <div className="fixed top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
         {notifications.map(n => (
@@ -1693,14 +1693,14 @@ export default function TallerLivePrototype() {
         {activeTab === 'taller' && (
           <>
             {!isSupabaseConnected && (
-              <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl mb-4">
-                <p className="text-[10px] text-blue-700 font-bold uppercase leading-relaxed">
+              <div className="bg-blue-900/30 border border-blue-500/20 p-4 rounded-2xl mb-4">
+                <p className="text-[10px] text-blue-300 font-bold uppercase leading-relaxed">
                   💡 <span className="underline">Nota de Sincronización</span>: Como no hay base de datos conectada, los cambios que hagas en el móvil NO aparecerán aquí automáticamente. Prueba a abrir el link en este mismo navegador para ver la magia.
                 </p>
               </div>
             )}
             <div className="flex justify-between items-center px-1">
-              <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Cola de Trabajo Activa</h2>
+              <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Cola de Trabajo Activa</h2>
               <div className="flex items-center gap-1.5 text-blue-500 font-black text-xs uppercase cursor-pointer">
                 <Filter size={14} />
                 <span>Filtrar</span>
@@ -1727,8 +1727,8 @@ export default function TallerLivePrototype() {
                     return [
                       <div key={`hdr-${group.key}`} className="flex items-center gap-2 px-1 mt-3 mb-0.5">
                         <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{group.label}</span>
-                        <div className="flex-1 h-px bg-slate-100" />
-                        <span className="text-[11px] font-black text-slate-300 tabular-nums">{groupJobs.length}</span>
+                        <div className="flex-1 h-px bg-white/10" />
+                        <span className="text-[11px] font-black text-slate-500 tabular-nums">{groupJobs.length}</span>
                       </div>,
                       ...groupJobs.map((job, index) => (
                       <motion.div
@@ -1736,7 +1736,7 @@ export default function TallerLivePrototype() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="bg-white rounded-[28px] p-3 shadow-md border border-slate-200/80 relative overflow-hidden active:scale-[0.98] transition-transform"
+                        className="bg-[#131D3B] rounded-[20px] p-3 border border-white/10 relative overflow-hidden active:scale-[0.98] transition-transform"
                       >
                   {/* Indicador Lateral de Urgencia */}
                   <div className={cn(
@@ -1746,23 +1746,23 @@ export default function TallerLivePrototype() {
 
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex flex-col">
-                      <span className="text-2xl font-black tracking-tighter text-slate-900 leading-none">
+                      <span className="text-2xl font-black tracking-tighter text-white leading-none">
                         {job.plate}
                       </span>
-                      <span className="text-base font-semibold text-slate-500 mt-0.5">
+                      <span className="text-sm font-semibold text-slate-400 mt-0.5">
                         {job.model}
                       </span>
                     </div>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditJob(job)}
-                          className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                          className="p-2 text-slate-600 hover:text-blue-400 transition-colors"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
                           onClick={() => setDeleteConfirmId(job.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                          className="p-2 text-slate-600 hover:text-red-400 transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1771,10 +1771,10 @@ export default function TallerLivePrototype() {
                   </div>
 
                   {/* CLIENTE */}
-                  <div className="flex items-center justify-between py-1.5 px-3 bg-slate-50 rounded-2xl border border-slate-100 mb-1.5">
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-[#0B132B] rounded-xl border border-white/10 mb-1.5">
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest leading-none mb-1">Cliente</span>
-                      <h3 className="text-base font-black text-slate-800 leading-none">
+                      <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">Cliente</span>
+                      <h3 className="text-sm font-black text-white leading-none">
                         {(job.customer || '').toUpperCase()}
                       </h3>
                     </div>
@@ -1789,7 +1789,7 @@ export default function TallerLivePrototype() {
                           key={i}
                           src={url}
                           alt={`Foto ${i + 1}`}
-                          className="w-14 h-14 rounded-xl object-cover border-2 border-slate-200 shadow-sm shrink-0 cursor-pointer"
+                          className="w-14 h-14 rounded-xl object-cover border border-white/20 shrink-0 cursor-pointer"
                           onClick={() => window.open(url, '_blank')}
                         />
                       ))}
@@ -1864,29 +1864,29 @@ export default function TallerLivePrototype() {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-6"
           >
-            <div className="bg-white rounded-[32px] p-8 shadow-xl border border-slate-100">
-              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-4">Configuración de Sincronización</h3>
+            <div className="bg-[#131D3B] rounded-[32px] p-8 border border-white/10">
+              <h3 className="text-xl font-black text-white uppercase tracking-tight mb-4">Configuración de Sincronización</h3>
               
-              <div className="bg-blue-50 p-4 rounded-2xl mb-6 border border-blue-100">
-                <h4 className="text-[10px] font-black text-blue-700 uppercase mb-2 tracking-widest">⚠️ IMPORTANTE: Activar Realtime</h4>
-                <p className="text-[10px] text-blue-600 font-bold leading-relaxed">
+              <div className="bg-blue-900/30 p-4 rounded-2xl mb-6 border border-blue-500/20">
+                <h4 className="text-[10px] font-black text-blue-300 uppercase mb-2 tracking-widest">⚠️ IMPORTANTE: Activar Realtime</h4>
+                <p className="text-[10px] text-blue-400 font-bold leading-relaxed">
                   Para que el dashboard se actualice solo, debes ir a tu panel de Supabase: <br/>
                   <b>Database → Replication → 'supabase_realtime' → Source: 'public' → Enable 'orders' table.</b>
                 </p>
               </div>
 
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 mb-6">
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#0B132B] border border-white/10 mb-6">
                 <div className={cn(
                   "w-12 h-12 rounded-full flex items-center justify-center",
-                  isSupabaseConnected ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"
+                  isSupabaseConnected ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"
                 )}>
                   <RefreshCw size={24} className={isSupabaseConnected ? "animate-spin-slow" : ""} />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-slate-900 uppercase">
+                  <p className="text-sm font-black text-white uppercase">
                     {isSupabaseConnected ? "Conexión Activa" : "Modo Local Activo"}
                   </p>
-                  <p className="text-xs text-slate-500 font-medium">
+                  <p className="text-xs text-slate-400 font-medium">
                     {isSupabaseConnected 
                       ? "Tus datos se sincronizan en tiempo real con la nube." 
                       : "Los datos solo se guardan en este navegador."}
@@ -1896,20 +1896,20 @@ export default function TallerLivePrototype() {
 
               {!isSupabaseConnected && (
                 <div className="space-y-4">
-                  <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                  <p className="text-sm text-slate-400 font-medium leading-relaxed">
                     Para que el móvil y el PC se hablen, necesitas conectar <b>Supabase</b>. Sigue estos pasos:
                   </p>
-                  <ol className="space-y-3 text-xs text-slate-500 font-bold uppercase tracking-wide">
+                  <ol className="space-y-3 text-xs text-slate-400 font-bold uppercase tracking-wide">
                     <li className="flex gap-3">
-                      <span className="bg-blue-100 text-blue-600 w-5 h-5 rounded-full flex items-center justify-center shrink-0">1</span>
+                      <span className="bg-blue-900/40 text-blue-400 w-5 h-5 rounded-full flex items-center justify-center shrink-0">1</span>
                       <span>Ve a <a href="https://supabase.com" target="_blank" className="text-blue-600 underline">supabase.com</a> y crea un proyecto gratuito.</span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="bg-blue-100 text-blue-600 w-5 h-5 rounded-full flex items-center justify-center shrink-0">2</span>
+                      <span className="bg-blue-900/40 text-blue-400 w-5 h-5 rounded-full flex items-center justify-center shrink-0">2</span>
                       <span>Copia la <b>URL</b> y la <b>Anon Key</b> de la pestaña "API Settings".</span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="bg-blue-100 text-blue-600 w-5 h-5 rounded-full flex items-center justify-center shrink-0">3</span>
+                      <span className="bg-blue-900/40 text-blue-400 w-5 h-5 rounded-full flex items-center justify-center shrink-0">3</span>
                       <span>Pégalas en las variables de entorno de AI Studio (VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY).</span>
                     </li>
                   </ol>
@@ -1922,24 +1922,24 @@ export default function TallerLivePrototype() {
                 </div>
               )}
 
-              <div className="mt-8 pt-8 border-t-4 border-blue-500 bg-blue-50/30 -mx-8 px-8 pb-8">
+              <div className="mt-8 pt-8 border-t border-white/10 -mx-8 px-8 pb-8">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-blue-500 p-2 rounded-lg text-white">
                     <SettingsIcon size={20} />
                   </div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">URL Pública del Taller</h3>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">URL Pública del Taller</h3>
                 </div>
                 
-                <p className="text-sm text-slate-600 font-bold mb-4 leading-tight">
+                <p className="text-sm text-slate-400 font-bold mb-4 leading-tight">
                   ⚠️ ESTE PASO ES OBLIGATORIO PARA QUE FUNCIONE EL MÓVIL DEL CLIENTE:
                 </p>
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-blue-500 uppercase tracking-widest ml-1">Pega aquí la "Shared App URL" de AI Studio</label>
+                    <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-1">Pega aquí la "Shared App URL" de AI Studio</label>
                     <input 
                       type="text"
-                      className="w-full bg-white border-4 border-blue-200 rounded-2xl py-5 px-6 text-sm font-black text-blue-700 focus:border-blue-500 focus:outline-none shadow-lg transition-all placeholder:text-slate-300"
+                      className="w-full bg-[#0B132B] border border-white/20 rounded-2xl py-5 px-6 text-sm font-black text-blue-300 focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-600"
                       value={publicUrl}
                       onChange={(e) => {
                         setPublicUrl(e.target.value);
@@ -1949,8 +1949,8 @@ export default function TallerLivePrototype() {
                     />
                   </div>
                   
-                  <div className="p-4 bg-white border-2 border-blue-100 rounded-2xl shadow-sm">
-                    <p className="text-[11px] text-slate-600 font-medium leading-snug">
+                  <div className="p-4 bg-[#0B132B] border border-white/10 rounded-2xl">
+                    <p className="text-[11px] text-slate-400 font-medium leading-snug">
                       1. Ve a la pestaña <b>Integrations</b> de AI Studio (arriba).<br/>
                       2. Copia la <b>Shared App URL</b> (la que empieza por <b>ais-pre-</b>).<br/>
                       3. Pégala en el cuadro azul de arriba.
@@ -1990,7 +1990,7 @@ export default function TallerLivePrototype() {
             className="space-y-6"
           >
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Gestión de Clientes</h3>
+              <h3 className="text-xl font-black text-white uppercase tracking-tight">Gestión de Clientes</h3>
               <button 
                 onClick={() => setIsModalOpen(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-200"
@@ -2001,19 +2001,19 @@ export default function TallerLivePrototype() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {customers.map(customer => (
-                <div key={customer.id} className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 space-y-4">
+                <div key={customer.id} className="bg-[#131D3B] rounded-3xl p-6 border border-white/10 space-y-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
+                      <div className="w-12 h-12 bg-blue-900/40 rounded-2xl flex items-center justify-center text-blue-400">
                         <FileText size={24} />
                       </div>
                       <div>
-                        <h4 className="font-black text-slate-900 uppercase tracking-tight">{customer.name}</h4>
-                        <p className="text-xs text-slate-500 font-bold">{customer.phone}</p>
+                        <h4 className="font-black text-white uppercase tracking-tight">{customer.name}</h4>
+                        <p className="text-xs text-slate-400 font-bold">{customer.phone}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
+                      <button className="p-2 text-slate-600 hover:text-blue-400 transition-colors">
                         <Edit2 size={18} />
                       </button>
                       <button 
@@ -2023,7 +2023,7 @@ export default function TallerLivePrototype() {
                             setCustomers(prev => prev.filter(c => c.id !== customer.id));
                           }
                         }}
-                        className="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                        className="p-2 text-slate-600 hover:text-red-400 transition-colors"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -2031,15 +2031,15 @@ export default function TallerLivePrototype() {
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vehículos</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Vehículos</p>
                     <div className="flex flex-wrap gap-2">
                       {vehicles.filter(v => v.customer_id === customer.id).map(vehicle => (
-                        <div key={vehicle.id} className="bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl flex items-center gap-2">
-                          <span className="text-[10px] font-black text-slate-900">{vehicle.plate}</span>
-                          <span className="text-[10px] font-bold text-slate-500">{vehicle.model}</span>
+                        <div key={vehicle.id} className="bg-[#0B132B] border border-white/10 px-3 py-2 rounded-xl flex items-center gap-2">
+                          <span className="text-[10px] font-black text-white">{vehicle.plate}</span>
+                          <span className="text-[10px] font-bold text-slate-400">{vehicle.model}</span>
                         </div>
                       ))}
-                      <button className="bg-blue-50 text-blue-600 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 hover:bg-blue-100 transition-colors">
+                      <button className="bg-blue-900/30 text-blue-400 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-500/20 hover:bg-blue-900/50 transition-colors">
                         + Añadir
                       </button>
                     </div>
@@ -2049,8 +2049,8 @@ export default function TallerLivePrototype() {
             </div>
 
             {customers.length === 0 && (
-              <div className="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-slate-200">
-                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No hay clientes registrados</p>
+              <div className="text-center py-20 bg-[#131D3B] rounded-[32px] border-2 border-dashed border-white/10">
+                <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">No hay clientes registrados</p>
               </div>
             )}
           </motion.div>
@@ -2062,12 +2062,12 @@ export default function TallerLivePrototype() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            <div className="bg-white rounded-[40px] p-12 text-center border border-slate-100">
-              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="bg-[#131D3B] rounded-[40px] p-12 text-center border border-white/10">
+              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
                 <History size={40} className="text-slate-300" />
               </div>
-              <h3 className="text-xl font-black text-slate-900 uppercase mb-2">Historial de Trabajos</h3>
-              <p className="text-slate-500 font-medium">Próximamente podrás consultar todos los trabajos finalizados aquí.</p>
+              <h3 className="text-xl font-black text-white uppercase mb-2">Historial de Trabajos</h3>
+              <p className="text-slate-400 font-medium">Próximamente podrás consultar todos los trabajos finalizados aquí.</p>
             </div>
           </motion.div>
         )}
@@ -2081,17 +2081,17 @@ export default function TallerLivePrototype() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl text-center"
+                className="bg-[#131D3B] rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-white/10 text-center"
               >
-                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-20 h-20 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Trash2 size={40} className="text-red-500" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-2">¿Eliminar registro?</h3>
-                <p className="text-slate-500 font-bold mb-8">Esta acción no se puede deshacer y borrará todos los datos del vehículo.</p>
+                <h3 className="text-2xl font-black text-white mb-2">¿Eliminar registro?</h3>
+                <p className="text-slate-400 font-bold mb-8">Esta acción no se puede deshacer y borrará todos los datos del vehículo.</p>
                 <div className="flex gap-4">
                   <button 
                     onClick={() => setDeleteConfirmId(null)}
-                    className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                    className="flex-1 py-4 bg-white/10 text-slate-300 rounded-2xl font-black uppercase tracking-widest hover:bg-white/20 transition-all"
                   >
                     No, volver
                   </button>
@@ -2125,17 +2125,17 @@ export default function TallerLivePrototype() {
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              className="relative w-full max-w-lg bg-white rounded-t-[40px] sm:rounded-[40px] shadow-2xl overflow-hidden"
+              className="relative w-full max-w-lg bg-[#131D3B] rounded-t-[40px] sm:rounded-[40px] shadow-2xl border border-white/10 overflow-hidden"
             >
               <div className="p-8">
                 <div className="flex justify-between items-center mb-8">
                   <div>
-                    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Editar Registro</h2>
-                    <p className="text-slate-500 text-sm font-bold">Modifica los datos del vehículo o cliente</p>
+                    <h2 className="text-2xl font-black text-white uppercase tracking-tight">Editar Registro</h2>
+                    <p className="text-slate-400 text-sm font-bold">Modifica los datos del vehículo o cliente</p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsEditModalOpen(false)}
-                    className="p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                    className="p-2 bg-white/10 rounded-full text-slate-400 hover:text-slate-200 transition-colors"
                   >
                     <X size={24} />
                   </button>
@@ -2148,7 +2148,7 @@ export default function TallerLivePrototype() {
                       <input 
                         required
                         placeholder="1234-ABC"
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all uppercase"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all uppercase"
                         value={formData.plate}
                         onChange={(e) => setFormData({...formData, plate: e.target.value})}
                       />
@@ -2158,7 +2158,7 @@ export default function TallerLivePrototype() {
                       <input 
                         required
                         placeholder="Seat Leon"
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
                         value={formData.model}
                         onChange={(e) => setFormData({...formData, model: e.target.value})}
                       />
@@ -2170,7 +2170,7 @@ export default function TallerLivePrototype() {
                     <input 
                       required
                       placeholder="Juan Pérez"
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
+                      className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
                       value={formData.customerName}
                       onChange={(e) => setFormData({...formData, customerName: e.target.value})}
                     />
@@ -2183,7 +2183,7 @@ export default function TallerLivePrototype() {
                         required
                         type="tel"
                         placeholder="600 000 000"
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
                         value={formData.customerPhone}
                         onChange={(e) => setFormData({...formData, customerPhone: e.target.value})}
                       />
@@ -2195,7 +2195,7 @@ export default function TallerLivePrototype() {
                     <textarea 
                       required
                       placeholder="Ej: Revisión anual, ruidos en frenos..."
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-sm font-medium focus:border-blue-500 focus:outline-none transition-all min-h-[100px]"
+                      className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-sm font-medium focus:border-blue-500 focus:outline-none transition-all min-h-[100px]"
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
                     />
@@ -2226,7 +2226,7 @@ export default function TallerLivePrototype() {
                     <button 
                       type="button"
                       onClick={() => setIsEditModalOpen(false)}
-                      className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                      className="flex-1 py-4 bg-white/10 text-slate-300 rounded-2xl font-black uppercase tracking-widest hover:bg-white/20 transition-all"
                     >
                       Cancelar
                     </button>
@@ -2281,7 +2281,7 @@ export default function TallerLivePrototype() {
                     <div className="relative">
                       <input 
                         placeholder="Buscar o escribir nuevo cliente..."
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
                         value={formData.customerName}
                         onChange={(e) => {
                           setFormData({...formData, customerName: e.target.value});
@@ -2319,7 +2319,7 @@ export default function TallerLivePrototype() {
                         required
                         type="tel"
                         placeholder="600 000 000"
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
                         value={formData.customerPhone}
                         onChange={(e) => setFormData({...formData, customerPhone: e.target.value})}
                       />
@@ -2332,7 +2332,7 @@ export default function TallerLivePrototype() {
                       <input 
                         required
                         placeholder="1234-ABC"
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all uppercase"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all uppercase"
                         value={formData.plate}
                         onChange={(e) => setFormData({...formData, plate: e.target.value})}
                       />
@@ -2342,7 +2342,7 @@ export default function TallerLivePrototype() {
                       <input 
                         required
                         placeholder="Seat Leon"
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
                         value={formData.model}
                         onChange={(e) => setFormData({...formData, model: e.target.value})}
                       />
@@ -2353,7 +2353,7 @@ export default function TallerLivePrototype() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Motivo Entrada</label>
                     <textarea 
                       placeholder="Descripción breve de la avería..."
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-base font-bold focus:border-blue-500 focus:outline-none transition-all min-h-[100px]"
+                      className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-base font-bold focus:border-blue-500 focus:outline-none transition-all min-h-[100px]"
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
                     />
@@ -2483,7 +2483,7 @@ export default function TallerLivePrototype() {
                       <input
                         type="number"
                         placeholder="Ej: 450"
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-5 px-6 text-3xl font-black focus:border-blue-500 focus:outline-none transition-all"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-5 px-6 text-3xl font-black focus:border-blue-500 focus:outline-none transition-all"
                         value={budgetAmount}
                         onChange={(e) => setBudgetAmount(e.target.value)}
                         autoFocus
@@ -2510,13 +2510,13 @@ export default function TallerLivePrototype() {
           setFormData({ plate: '', model: '', customerName: '', customerPhone: '', description: '', urgency: 'medium' });
           setIsModalOpen(true);
         }}
-        className="fixed bottom-8 right-6 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl shadow-blue-300 flex items-center justify-center hover:bg-blue-700 active:scale-90 transition-all z-50 border-4 border-white"
+        className="fixed bottom-8 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl shadow-blue-900/50 flex items-center justify-center hover:bg-blue-700 active:scale-90 transition-all z-50 border-2 border-blue-800"
       >
         <Plus size={32} />
       </button>
 
       {/* Navegación Inferior */}
-      <nav className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 h-20 flex items-center justify-around px-6 z-40">
+      <nav className="fixed bottom-0 inset-x-0 bg-[#0B132B]/95 backdrop-blur-lg border-t border-white/10 h-20 flex items-center justify-around px-6 z-40">
         <NavItem icon={<Wrench size={22} />} label="Taller" active={activeTab === 'taller'} onClick={() => setActiveTab('taller')} />
         <NavItem icon={<Clock size={22} />} label="Historial" active={activeTab === 'historial'} onClick={() => setActiveTab('historial')} />
         <div className="w-12" /> {/* Espacio para el botón flotante */}
@@ -2531,8 +2531,8 @@ export default function TallerLivePrototype() {
 
 function StatCard({ label, value, color }: { label: string, value: number, color: string }) {
   return (
-    <div className="bg-white rounded-2xl p-3 shadow-md border border-slate-100 text-center">
-      <p className="text-xs font-black text-slate-400 uppercase mb-1">{label}</p>
+    <div className="bg-[#131D3B] rounded-2xl p-3 border border-white/10 text-center">
+      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{label}</p>
       <p className={cn("text-2xl font-black", color)}>{value}</p>
     </div>
   );
@@ -2583,7 +2583,7 @@ function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNo
       onClick={onClick}
       className={cn(
         "flex flex-col items-center gap-1 transition-colors",
-        active ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
+        active ? "text-blue-400" : "text-slate-500 hover:text-slate-300"
       )}
     >
       {icon}
