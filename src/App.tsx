@@ -34,6 +34,9 @@ import { AudioRecorder } from './services/audioService';
 type JobStatus = 'waiting' | 'diagnosed' | 'waiting_customer' | 'repairing' | 'ready' | 'awaiting_diagnosis' | 'diagnosing';
 type Urgency = 'low' | 'medium' | 'high';
 
+// --- Constantes de configuración ---
+const CURRENT_WORKSHOP_ID = import.meta.env.VITE_WORKSHOP_ID || '';
+
 // --- Datos de Prueba (Fallback) ---
 const MOCK_JOBS: any[] = [
   {
@@ -953,10 +956,17 @@ export default function TallerLivePrototype() {
 
       if (isSupabaseConnected) {
         try {
-          await supabase
+          const { error } = await supabase
             .from('orders')
-            .update({ budget: parseFloat(budgetToSave), description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosed' } : {}) })
+            .update({
+              budget: Number(budgetToSave),
+              total_estimated: Number(budgetToSave),
+              description: diagnosisToSave,
+              workshop_id: CURRENT_WORKSHOP_ID,
+              ...(shouldAdvance ? { status: 'waiting_customer' } : {})
+            })
             .eq('id', activeJobId);
+          if (error) console.error(error);
         } catch (e) {
           console.error('Error sincronizando presupuesto:', e);
         }
