@@ -90,7 +90,7 @@ const StatusBadge = ({ status }: { status: JobStatus }) => {
     ready:            { label: 'Listo ✓',            color: 'bg-[#C8E6C4] text-[#2E5E35] border-[#7AB87A]' },
     // Legado (datos existentes en BD)
     awaiting_diagnosis: { label: 'En espera',        color: 'bg-[#EDEDED] text-[#787878] border-[#D0D0D0]' },
-    diagnosing:         { label: 'En espera',        color: 'bg-[#EDEDED] text-[#787878] border-[#D0D0D0]' },
+    diagnosing:         { label: 'Diagnosticado',     color: 'bg-[#F0EBE0] text-[#7B6347] border-[#D4C4A0]' },
   };
 
   const { label, color } = config[status];
@@ -689,7 +689,7 @@ export default function TallerLivePrototype() {
                 status: data.status,
                 budget: data.budget?.toString() || '0',
                 aiDiagnosis: data.description,
-                budgetShared: !!data.budget,
+                budgetShared: data.status === 'waiting_customer' || data.status === 'repairing' || data.status === 'ready',
                 description: data.description,
                 entryTime: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 photos: data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
@@ -950,7 +950,7 @@ export default function TallerLivePrototype() {
 
       setJobs(prevJobs => prevJobs.map(job =>
         job.id === activeJobId
-          ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosed' } : {}) }
+          ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosing' } : {}) }
           : job
       ));
 
@@ -963,7 +963,7 @@ export default function TallerLivePrototype() {
               total_estimated: Number(budgetToSave),
               description: diagnosisToSave,
               workshop_id: CURRENT_WORKSHOP_ID,
-              ...(shouldAdvance ? { status: 'waiting_customer' } : {})
+              ...(shouldAdvance ? { status: 'diagnosing' } : {})
             })
             .eq('id', activeJobId);
           if (error) console.error(error);
@@ -1031,7 +1031,7 @@ export default function TallerLivePrototype() {
       return;
     }
 
-    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    window.location.href = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
   };
 
   const handleReadyNotification = (job: any) => {
@@ -1046,7 +1046,7 @@ export default function TallerLivePrototype() {
     if (phone.length === 9) phone = `34${phone}`;
     
     if (phone) {
-      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+      window.location.href = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
     }
 
     // Si hay email, también intentamos abrir el cliente de correo
@@ -1723,8 +1723,8 @@ export default function TallerLivePrototype() {
                 (j.customer || '').toLowerCase().includes((filter || '').toLowerCase())
               );
               const groups = [
-                { key: 'waiting',    label: 'En espera',             statuses: ['waiting', 'awaiting_diagnosis', 'diagnosing'] },
-                { key: 'diagnosed',  label: 'Diagnosticados',         statuses: ['diagnosed'] },
+                { key: 'waiting',    label: 'En espera',             statuses: ['waiting', 'awaiting_diagnosis'] },
+                { key: 'diagnosed',  label: 'Diagnosticados',         statuses: ['diagnosed', 'diagnosing'] },
                 { key: 'validation', label: 'En espera del cliente',  statuses: ['waiting_customer'] },
                 { key: 'repairing',  label: 'En preparación',         statuses: ['repairing'] },
                 { key: 'ready',      label: 'Listos para entrega',    statuses: ['ready'] },
