@@ -2025,7 +2025,33 @@ export default function TallerLivePrototype() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button className="p-2 text-slate-600 hover:text-blue-400 transition-colors">
+                      <button
+                        className="p-2 text-slate-600 hover:text-blue-400 transition-colors"
+                        onClick={async () => {
+                          const newName = window.prompt('Nombre del cliente:', customer.name);
+                          if (newName === null) return;
+                          const newPhone = window.prompt('Teléfono:', customer.phone);
+                          if (newPhone === null) return;
+
+                          console.log("UPDATE CUSTOMER TRIGGERED", customer.id);
+
+                          setCustomers(prev => prev.map(c =>
+                            c.id === customer.id ? { ...c, name: newName, phone: newPhone } : c
+                          ));
+
+                          if (isSupabaseConnected) {
+                            const { error } = await supabase
+                              .from('customers')
+                              .update({
+                                name: newName,
+                                phone: newPhone,
+                                workshop_id: CURRENT_WORKSHOP_ID
+                              })
+                              .eq('id', customer.id);
+                            if (error) console.error("ERROR UPDATE CUSTOMER:", error);
+                          }
+                        }}
+                      >
                         <Edit2 size={18} />
                       </button>
                       <button 
