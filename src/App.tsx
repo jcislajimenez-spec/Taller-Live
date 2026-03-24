@@ -751,7 +751,7 @@ export default function TallerLivePrototype() {
     addLog(`Iniciando subida de foto para job: ${jobId}`);
 
     // Marcar job como "subiendo" para feedback visual inmediato
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, _uploading: true } : j));
+    setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? { ...j, _uploading: true } : j));
 
     try {
       // 1. Comprimir imagen
@@ -799,7 +799,7 @@ export default function TallerLivePrototype() {
       addLog(`Error: ${e.message}`);
       notify(`Error al subir imagen: ${e.message}`, 'error');
     } finally {
-      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, _uploading: false } : j));
+      setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? { ...j, _uploading: false } : j));
       setActiveJobId(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -867,7 +867,7 @@ export default function TallerLivePrototype() {
       }
 
       // 1. Feedback inmediato: marcar como "procesando" (SIN guardar base64 en state)
-      setJobs(prev => prev.map(j => j.id === jobId ? {
+      setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? {
         ...j,
         aiDiagnosis: "Procesando diagnóstico con IA..."
       } : j));
@@ -880,11 +880,11 @@ export default function TallerLivePrototype() {
         addLog(`Transcripción: "${professionalText.substring(0, 60)}..."`);
 
         // Feedback intermedio: mostrar diagnóstico mientras sube
-        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, aiDiagnosis: professionalText } : j));
+        setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? { ...j, aiDiagnosis: professionalText } : j));
       } catch (err: any) {
         addLog(`Error IA: ${err.message}`);
         notify(`Error al transcribir: ${err.message}`, 'error');
-        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, aiDiagnosis: "Error al procesar diagnóstico." } : j));
+        setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? { ...j, aiDiagnosis: "Error al procesar diagnóstico." } : j));
         setActiveJobId(null);
         recordingJobIdRef.current = null;
         return;
@@ -959,7 +959,7 @@ export default function TallerLivePrototype() {
   const openBudgetModal = (jobId: string) => {
     budgetJobIdRef.current = jobId;
     setActiveJobId(jobId);
-    const job = jobs.find(j => j.id === jobId);
+    const job = jobs.find(j => String(j.id) === String(jobId));
     setBudgetAmount(job?.budget || '0');
     setDiagnosisText(job?.aiDiagnosis || '');
     setIsBudgetModalOpen(true);
@@ -980,11 +980,11 @@ export default function TallerLivePrototype() {
 
     const budgetToSave = budgetAmount || '0';
     const diagnosisToSave = diagnosisText;
-    const currentJob = jobs.find(j => j.id === jobId);
+    const currentJob = jobs.find(j => String(j.id) === String(jobId));
     const shouldAdvance = ['waiting', 'awaiting_diagnosis', 'diagnosing'].includes(currentJob?.status || '');
 
     setJobs(prevJobs => prevJobs.map(job =>
-      job.id === jobId
+      String(job.id) === String(jobId)
         ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosing' } : {}) }
         : job
     ));
@@ -2489,7 +2489,7 @@ export default function TallerLivePrototype() {
       {/* MODAL: PRESUPUESTO */}
       <AnimatePresence>
         {isBudgetModalOpen && (() => {
-          const activeJob = jobs.find(j => j.id === activeJobId);
+          const activeJob = jobs.find(j => String(j.id) === String(activeJobId));
           return (
             <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
               <motion.div 
