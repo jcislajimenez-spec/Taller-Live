@@ -401,6 +401,7 @@ export default function TallerLivePrototype() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const audioRecorderRef = React.useRef<AudioRecorder>(new AudioRecorder());
+  const recordingJobIdRef = React.useRef<string | null>(null);
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Formulario Nueva Entrada
@@ -810,6 +811,7 @@ export default function TallerLivePrototype() {
         return;
       }
 
+      recordingJobIdRef.current = jobId;
       const recorder = audioRecorderRef.current;
       await recorder.start();
       setActiveJobId(jobId);
@@ -835,7 +837,7 @@ export default function TallerLivePrototype() {
       timerRef.current = null;
     }
 
-    const jobId = activeJobId;
+    const jobId = recordingJobIdRef.current;
     if (!jobId) return;
 
     try {
@@ -845,10 +847,18 @@ export default function TallerLivePrototype() {
       if (String(jobId).startsWith('temp-')) {
         notify("No se puede guardar audio en un pedido local.", 'error');
         setActiveJobId(null);
+        recordingJobIdRef.current = null;
         return;
       }
 
       addLog(`Grabación: ${result.durationSeconds}s, ${(result.blob.size / 1024).toFixed(0)}KB`);
+
+      if (result.durationSeconds < 2) {
+        notify("Grabación demasiado corta. Graba al menos 2 segundos.", 'error');
+        setActiveJobId(null);
+        recordingJobIdRef.current = null;
+        return;
+      }
 
       // 1. Feedback inmediato: marcar como "procesando" (SIN guardar base64 en state)
       setJobs(prev => prev.map(j => j.id === jobId ? {
@@ -870,6 +880,7 @@ export default function TallerLivePrototype() {
         notify(`Error al transcribir: ${err.message}`, 'error');
         setJobs(prev => prev.map(j => j.id === jobId ? { ...j, aiDiagnosis: "Error al procesar diagnóstico." } : j));
         setActiveJobId(null);
+        recordingJobIdRef.current = null;
         return;
       }
 
@@ -914,15 +925,19 @@ export default function TallerLivePrototype() {
         } catch (err: any) {
           addLog(`Error Supabase: ${err.message}`);
           notify(`Error al guardar: ${err.message}`, 'error');
+          setActiveJobId(null);
+          recordingJobIdRef.current = null;
         }
       }
 
       setActiveJobId(null);
+      recordingJobIdRef.current = null;
     } catch (err: any) {
       console.error("Error grabación:", err);
       addLog(`Error: ${err.message}`);
       notify("Error al procesar la grabación.", 'error');
       setActiveJobId(null);
+      recordingJobIdRef.current = null;
     }
   };
 
