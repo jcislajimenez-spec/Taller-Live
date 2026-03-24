@@ -2496,7 +2496,7 @@ export default function TallerLivePrototype() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={() => setIsBudgetModalOpen(false)}
+                onClick={() => { setIsBudgetModalOpen(false); setActiveJobId(null); budgetJobIdRef.current = null; }}
                 className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
               />
               <motion.div 
@@ -2508,7 +2508,7 @@ export default function TallerLivePrototype() {
                 <div className="p-8 overflow-y-auto flex-1">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Presupuestar</h2>
-                    <button onClick={() => setIsBudgetModalOpen(false)} className="p-2 bg-slate-100 rounded-full text-slate-400"><X size={20} /></button>
+                    <button onClick={() => { setIsBudgetModalOpen(false); setActiveJobId(null); budgetJobIdRef.current = null; }} className="p-2 bg-slate-100 rounded-full text-slate-400"><X size={20} /></button>
                   </div>
                   
                   <div className="space-y-6">
