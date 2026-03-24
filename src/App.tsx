@@ -289,6 +289,7 @@ export default function TallerLivePrototype() {
   const [filter, setFilter] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [budgetAmount, setBudgetAmount] = useState<string>('');
@@ -402,6 +403,7 @@ export default function TallerLivePrototype() {
   const [recordingTime, setRecordingTime] = useState(0);
   const audioRecorderRef = React.useRef<AudioRecorder>(new AudioRecorder());
   const recordingJobIdRef = React.useRef<string | null>(null);
+  const budgetJobIdRef = React.useRef<string | null>(null);
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Formulario Nueva Entrada
@@ -730,9 +732,16 @@ export default function TallerLivePrototype() {
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !activeJobId) return;
+    if (!file) return;
+
+    if (!activeJobId) {
+      console.error("Foto sin activeJobId");
+      notify("Error: no se pudo asociar la foto al pedido", 'error');
+      return;
+    }
 
     const jobId = activeJobId;
+    console.log("Uploading photo for job:", jobId);
 
     if (String(jobId).startsWith('temp-')) {
       notify("No se pueden subir fotos a un pedido que no se ha sincronizado con Supabase.", 'error');
@@ -781,10 +790,7 @@ export default function TallerLivePrototype() {
 
       if (mediaError) throw mediaError;
 
-      // 4. Actualizar status
-      await supabase.from('orders').update({ status: 'waiting' }).eq('id', jobId);
-
-      // 5. CLAVE: Re-fetch este job desde Supabase (fuente de verdad)
+      // 4. CLAVE: Re-fetch este job desde Supabase (fuente de verdad)
       await refreshSingleJob(jobId);
 
       notify("Imagen subida correctamente", 'success');
@@ -913,9 +919,11 @@ export default function TallerLivePrototype() {
             note: professionalText
           }]);
 
+          const currentJobForAudio = jobs.find(j => String(j.id) === String(jobId));
+          const shouldAdvanceAudio = ['waiting', 'awaiting_diagnosis', 'diagnosing'].includes(currentJobForAudio?.status || '');
           await supabase.from('orders').update({
             description: professionalText,
-            status: 'waiting'
+            ...(shouldAdvanceAudio ? { status: 'diagnosing' } : {})
           }).eq('id', jobId);
 
           // 4. CLAVE: Re-fetch desde Supabase (fuente de verdad)
@@ -949,6 +957,7 @@ export default function TallerLivePrototype() {
 
   // --- Lógica de Presupuesto ---
   const openBudgetModal = (jobId: string) => {
+    budgetJobIdRef.current = jobId;
     setActiveJobId(jobId);
     const job = jobs.find(j => j.id === jobId);
     setBudgetAmount(job?.budget || '0');
@@ -957,41 +966,56 @@ export default function TallerLivePrototype() {
   };
 
   const handleSaveBudget = async () => {
-    if (activeJobId) {
-      const budgetToSave = budgetAmount || '0';
-      const diagnosisToSave = diagnosisText;
-      const currentJob = jobs.find(j => j.id === activeJobId);
-      const shouldAdvance = ['waiting', 'awaiting_diagnosis', 'diagnosing'].includes(currentJob?.status || '');
+    if (isSavingBudget) return;
 
-      setJobs(prevJobs => prevJobs.map(job =>
-        job.id === activeJobId
-          ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosing' } : {}) }
-          : job
-      ));
+    const jobId = budgetJobIdRef.current;
 
-      if (isSupabaseConnected) {
-        try {
-          const { error } = await supabase
-            .from('orders')
-            .update({
-              budget: Number(budgetToSave),
-              total_estimated: Number(budgetToSave),
-              description: diagnosisToSave,
-              workshop_id: CURRENT_WORKSHOP_ID,
-              ...(shouldAdvance ? { status: 'diagnosing' } : {})
-            })
-            .eq('id', activeJobId);
-          if (error) console.error(error);
-        } catch (e) {
-          console.error('Error sincronizando presupuesto:', e);
-        }
-      }
-
-      setIsBudgetModalOpen(false);
-      setActiveJobId(null);
-      setBudgetAmount('');
-      setDiagnosisText('');
+    if (!jobId) {
+      console.error("SaveBudget sin jobId");
+      notify("Error: no se pudo guardar el informe", 'error');
+      return;
     }
+
+    setIsSavingBudget(true);
+
+    const budgetToSave = budgetAmount || '0';
+    const diagnosisToSave = diagnosisText;
+    const currentJob = jobs.find(j => j.id === jobId);
+    const shouldAdvance = ['waiting', 'awaiting_diagnosis', 'diagnosing'].includes(currentJob?.status || '');
+
+    setJobs(prevJobs => prevJobs.map(job =>
+      job.id === jobId
+        ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosing' } : {}) }
+        : job
+    ));
+
+    if (isSupabaseConnected) {
+      try {
+        const { error } = await supabase
+          .from('orders')
+          .update({
+            budget: Number(budgetToSave),
+            total_estimated: Number(budgetToSave),
+            description: diagnosisToSave,
+            workshop_id: CURRENT_WORKSHOP_ID,
+            ...(shouldAdvance ? { status: 'diagnosing' } : {})
+          })
+          .eq('id', jobId);
+        if (error) throw error;
+      } catch (e) {
+        console.error('Error sincronizando presupuesto:', e);
+        notify("Error al guardar el informe. Inténtalo de nuevo.", 'error');
+        setIsSavingBudget(false);
+        return;
+      }
+    }
+
+    setIsSavingBudget(false);
+    setIsBudgetModalOpen(false);
+    setActiveJobId(null);
+    budgetJobIdRef.current = null;
+    setBudgetAmount('');
+    setDiagnosisText('');
   };
 
   const handleWhatsAppShare = (job: any, skipStateUpdate = false) => {
@@ -2545,9 +2569,10 @@ export default function TallerLivePrototype() {
 
                     <button
                       onClick={handleSaveBudget}
-                      className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black uppercase text-sm shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
+                      disabled={isSavingBudget}
+                      className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black uppercase text-sm shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
-                      Guardar informe
+                      {isSavingBudget ? 'Guardando...' : 'Guardar informe'}
                     </button>
                   </div>
                 </div>
