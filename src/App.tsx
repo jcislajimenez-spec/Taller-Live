@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Wrench, 
-  Camera, 
-  Mic, 
-  Clock, 
-  CheckCircle2, 
-  FileText, 
+import {
+  Wrench,
+  Camera,
+  Mic,
+  Clock,
+  CheckCircle2,
+  FileText,
   AlertCircle,
-  MessageSquare, 
-  Plus, 
+  MessageSquare,
+  Plus,
   Search,
   ChevronRight,
   Filter,
@@ -22,7 +22,8 @@ import {
   Trash2,
   Edit2,
   Info,
-  Terminal
+  Terminal,
+  History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -93,7 +94,7 @@ const StatusBadge = ({ status }: { status: JobStatus }) => {
     diagnosing:         { label: 'Diagnosticado',     color: 'bg-[#F0EBE0] text-[#7B6347] border-[#D4C4A0]' },
   };
 
-  const { label, color } = config[status];
+  const { label, color } = config[status] ?? { label: status ?? 'Desconocido', color: 'bg-slate-100 text-slate-500 border-slate-200' };
   return (
     <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border", color)}>
       {label}
@@ -1286,6 +1287,7 @@ export default function TallerLivePrototype() {
           urgency: formData.urgency,
           entryTime: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           description: formData.description,
+          public_token: order.public_token,
           photos: [],
           audios: []
         };
@@ -1382,9 +1384,16 @@ export default function TallerLivePrototype() {
           
         if (error) {
           console.error('Error de Supabase al aprobar presupuesto:', error);
+          setIsApproved(false);
+          setClientJob(clientJob);
+          notify('Error al enviar la aprobación. Inténtalo de nuevo.', 'error');
+          return;
         }
       } catch (e) {
         console.error('Error de red/conexión en Supabase:', e);
+        setIsApproved(false);
+        setClientJob(clientJob);
+        notify('Error de conexión. Inténtalo de nuevo.', 'error');
       }
     }
   };
