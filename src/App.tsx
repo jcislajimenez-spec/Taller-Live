@@ -1178,6 +1178,13 @@ export default function TallerLivePrototype() {
     e.preventDefault();
     setIsLoading(true);
 
+    if (!CURRENT_WORKSHOP_ID) {
+      console.error("ERROR: WORKSHOP_ID no configurado");
+      notify("Error crítico: falta configuración del taller", 'error');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       if (isSupabaseConnected) {
         let customerId = selectedCustomerId;
@@ -1257,9 +1264,10 @@ export default function TallerLivePrototype() {
         console.log("Insertando orden en Supabase...");
         const { data: order, error: orderError } = await supabase
           .from('orders')
-          .insert([{ 
-            vehicle_id: vehicleId, 
+          .insert([{
+            vehicle_id: vehicleId,
             customer_id: customerId,
+            workshop_id: CURRENT_WORKSHOP_ID,
             status: 'waiting',
             urgency: formData.urgency,
             description: formData.description,
