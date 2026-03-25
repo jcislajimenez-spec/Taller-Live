@@ -487,6 +487,17 @@ export default function TallerLivePrototype() {
     };
   }, [viewMode, clientJob, isSupabaseConnected]);
 
+  // --- Detección de jobs no sincronizados (temp-) ---
+  const hasWarnedTempRef = React.useRef(false);
+  useEffect(() => {
+    if (!isSupabaseConnected || jobs.length === 0 || hasWarnedTempRef.current) return;
+    const tempJobs = jobs.filter(j => String(j.id).startsWith('temp-'));
+    if (tempJobs.length > 0) {
+      hasWarnedTempRef.current = true;
+      notify('Hay registros no sincronizados. Revísalos o elimínalos.', 'info');
+    }
+  }, [jobs, isSupabaseConnected]);
+
   // --- Sincronización en Tiempo Real con Supabase ---
   useEffect(() => {
     if (!isSupabaseConnected) return;
@@ -1026,7 +1037,7 @@ export default function TallerLivePrototype() {
     }
 
     if (!skipStateUpdate) {
-      setJobs(prev => prev.map(j => j.id === job.id ? { ...j, budgetShared: true, status: 'waiting_customer' } : j));
+      setJobs(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, budgetShared: true, status: 'waiting_customer' } : j));
       if (isSupabaseConnected) {
         supabase.from('orders').update({ status: 'waiting_customer' }).eq('id', job.id).then();
       }
@@ -1434,14 +1445,6 @@ export default function TallerLivePrototype() {
               Ir a la web principal
             </button>
             
-            <div className="mt-8 pt-6 border-t border-slate-100 text-left">
-              <p className="text-[10px] text-slate-400 font-bold uppercase mb-2">¿Problemas al cargar?</p>
-              <ul className="text-[10px] text-slate-400 space-y-1 list-disc pl-3">
-                <li>Si ves "Page not found", asegúrate de haber iniciado sesión en Google.</li>
-                <li>Si ves un error de cookies, pulsa "Autenticar en nueva ventana".</li>
-                <li>Esto es temporal mientras Google actualiza sus sistemas.</li>
-              </ul>
-            </div>
           </div>
         </div>
       );
