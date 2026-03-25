@@ -34,7 +34,10 @@ export async function transcribeAndDiagnose(
       "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
       "apikey": SUPABASE_ANON_KEY,
     },
-    body: JSON.stringify({ base64Audio, mimeType }),
+    body: JSON.stringify({
+      base64Audio,
+      mimeType: mimeType?.startsWith("audio/") ? mimeType : "audio/webm",
+    }),
   });
 
   if (!response.ok) {
