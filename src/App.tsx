@@ -1558,12 +1558,12 @@ export default function TallerLivePrototype() {
               {clientJob.photos?.length > 0 && (
                 <div className="space-y-3">
                   {clientJob.photos.map((photo: string, i: number) => (
-                    <div key={i} className="rounded-2xl overflow-hidden border-2 border-white shadow-lg" style={{ maxWidth: '100%' }}>
-                      <img 
-                        src={photo} 
-                        alt={`Evidencia ${i + 1}`} 
-                        className="w-full object-cover rounded-2xl"
-                        style={{ maxHeight: '400px' }}
+                    <div key={i} className="rounded-2xl overflow-hidden border-2 border-white shadow-lg bg-slate-900" style={{ maxWidth: '100%' }}>
+                      <img
+                        src={photo}
+                        alt={`Evidencia ${i + 1}`}
+                        className="w-full object-contain rounded-2xl"
+                        style={{ maxHeight: '500px' }}
                       />
                     </div>
                   ))}
