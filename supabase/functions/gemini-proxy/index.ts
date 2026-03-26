@@ -84,29 +84,41 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  console.log(`[gemini-proxy] mimeType recibido: "${mimeType}" | base64Data.length: ${base64Data.length}`);
+
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+  const geminiBody = JSON.stringify({
+    contents: [
+      {
+        parts: [
+          { text: GEMINI_PROMPT },
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType,
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  const doFetch = () =>
+    fetch(geminiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: geminiBody,
+    });
 
   let geminiResponse: Response;
   try {
-    geminiResponse = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: GEMINI_PROMPT },
-              {
-                inlineData: {
-                  data: base64Data,
-                  mimeType,
-                },
-              },
-            ],
-          },
-        ],
-      }),
-    });
+    geminiResponse = await doFetch();
+    if (geminiResponse.status === 503) {
+      console.log("[gemini-proxy] 503 recibido, reintentando en 1.5s...");
+      await new Promise((r) => setTimeout(r, 1500));
+      geminiResponse = await doFetch();
+    }
   } catch (err) {
     return new Response(`Error conectando con Gemini: ${(err as Error).message}`, {
       status: 502,

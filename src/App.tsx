@@ -37,6 +37,8 @@ type Urgency = 'low' | 'medium' | 'high';
 
 // --- Constantes de configuración ---
 const CURRENT_WORKSHOP_ID = import.meta.env.VITE_WORKSHOP_ID || '';
+const WORKSHOP_NAME = import.meta.env.VITE_WORKSHOP_NAME || 'Taller';
+const WORKSHOP_CITY = import.meta.env.VITE_WORKSHOP_CITY || '';
 
 // --- Datos de Prueba (Fallback) ---
 const MOCK_JOBS: any[] = [
@@ -357,6 +359,7 @@ export default function TallerLivePrototype() {
           customer:customers(*),
           media:order_media(*)
         `)
+        .eq('workshop_id', CURRENT_WORKSHOP_ID)
         .order('created_at', { ascending: false });
 
 
@@ -578,6 +581,7 @@ export default function TallerLivePrototype() {
               media:order_media(*)
             `)
             .eq('public_token', tokenParam)
+            .eq('workshop_id', CURRENT_WORKSHOP_ID)
             .single();
 
           if (data) {
@@ -1064,7 +1068,7 @@ export default function TallerLivePrototype() {
       magicLink = `${baseUrl}?d=${encodedData}`;
     }
     
-    const message = `*📋 INFORME DE TALLER - AUTOMOCIÓN MENDOZA*\n\n` +
+    const message = `*📋 INFORME DE TALLER - ${WORKSHOP_NAME.toUpperCase()}*\n\n` +
                     `Hola *${job.customer}*,\n\n` +
                     `Hemos revisado su vehículo *${job.model}* (${job.plate}).\n\n` +
                     `💰 *PRESUPUESTO: ${job.budget || '---'}€*\n\n` +
@@ -1086,11 +1090,11 @@ export default function TallerLivePrototype() {
   };
 
   const handleReadyNotification = (job: any) => {
-    const message = `*✅ VEHÍCULO FINALIZADO - AUTOMOCIÓN MENDOZA*\n\n` +
+    const message = `*✅ VEHÍCULO FINALIZADO - ${WORKSHOP_NAME.toUpperCase()}*\n\n` +
                     `Estimado/a *${job.customer}*,\n\n` +
                     `Le informamos que la reparación de su vehículo *${job.model}* (${job.plate}) ha sido completada.\n\n` +
                     `Su vehículo ya está listo y puede pasar a recogerlo por nuestras instalaciones cuando lo desee.\n\n` +
-                    `Atentamente,\nEl equipo de Automoción Mendoza.`;
+                    `Atentamente,\nEl equipo de ${WORKSHOP_NAME}.`;
 
     const encodedMessage = encodeURIComponent(message);
     let phone = job.customerPhone?.replace(/\D/g, '') || '';
@@ -1486,7 +1490,7 @@ export default function TallerLivePrototype() {
         <header className="bg-[#050A1F] text-white p-6 rounded-b-[40px] shadow-xl text-center">
           <h1 className="text-xl font-black tracking-tighter uppercase italic text-blue-400 mb-2">TallerLive</h1>
           <h2 className="text-lg font-black uppercase tracking-widest">Informe de Diagnóstico</h2>
-          <p className="text-blue-400 text-xs font-bold mt-1">Automoción Mendoza, S.L.</p>
+          <p className="text-blue-400 text-xs font-bold mt-1">{WORKSHOP_NAME}</p>
         </header>
 
         <main className="p-5 space-y-6 -mt-6 pb-20">
@@ -1604,7 +1608,7 @@ export default function TallerLivePrototype() {
                 </li>
                 <li className="flex gap-2">
                   <span className="text-blue-600 font-bold">•</span>
-                  <span>Si necesita más información, contacte directamente con Automoción Mendoza.</span>
+                  <span>Si necesita más información, contacte directamente con {WORKSHOP_NAME}.</span>
                 </li>
               </ul>
             </div>
@@ -1703,8 +1707,8 @@ export default function TallerLivePrototype() {
 
           {/* Centro: Empresa — solo desktop */}
           <div className="hidden sm:flex flex-1 flex-col text-center min-w-0">
-            <p className="text-xl font-bold uppercase text-white leading-none">AUTOMOCIÓN MENDOZA</p>
-            <p className="text-sm text-blue-400 mt-1">ALFARO</p>
+            <p className="text-xl font-bold uppercase text-white leading-none">{WORKSHOP_NAME.toUpperCase()}</p>
+            {WORKSHOP_CITY && <p className="text-sm text-blue-400 mt-1">{WORKSHOP_CITY}</p>}
           </div>
 
           {/* Derecha: Acciones */}
@@ -1732,8 +1736,8 @@ export default function TallerLivePrototype() {
 
         {/* Fila 2+3: Empresa — solo móvil */}
         <div className="sm:hidden text-center mt-2 mb-2">
-          <p className="text-lg font-bold uppercase text-white leading-tight">AUTOMOCIÓN MENDOZA</p>
-          <p className="text-xs text-blue-400 mt-1">ALFARO</p>
+          <p className="text-lg font-bold uppercase text-white leading-tight">{WORKSHOP_NAME.toUpperCase()}</p>
+          {WORKSHOP_CITY && <p className="text-xs text-blue-400 mt-1">{WORKSHOP_CITY}</p>}
         </div>
 
         {/* Fila 4: Buscador */}
@@ -2043,7 +2047,7 @@ export default function TallerLivePrototype() {
 
             <div className="bg-[#050A1F] rounded-[32px] p-8 shadow-xl text-white">
               <h3 className="text-lg font-black uppercase tracking-tight mb-2">Sobre TallerLive</h3>
-              <p className="text-blue-400 text-xs font-bold mb-6">Versión 1.2.0 - Automoción Mendoza</p>
+              <p className="text-blue-400 text-xs font-bold mb-6">Versión 1.2.0 - {WORKSHOP_NAME}</p>
               <button 
                 onClick={() => window.location.reload()}
                 className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border border-white/10"
