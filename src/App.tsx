@@ -1512,7 +1512,7 @@ export default function TallerLivePrototype() {
         <main className="p-5 space-y-6 -mt-6 pb-20">
           {/* Datos del vehículo */}
           <div className="bg-white rounded-[32px] p-6 shadow-xl border border-slate-100">
-            <div className="flex justify-between items-start mb-6">
+            <div className="flex justify-between items-start">
               <div>
                 <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Vehículo</span>
                 <h3 className="text-2xl font-black text-slate-900">{clientJob.plate}</h3>
@@ -1520,40 +1520,77 @@ export default function TallerLivePrototype() {
               </div>
               <StatusBadge status={clientJob.status} />
             </div>
+          </div>
 
-            {/* Presupuesto + foto principal */}
-            <div className="space-y-5">
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Presupuesto Estimado</span>
-                <div className="flex items-center justify-between">
-                  <span className="text-4xl font-black text-blue-600">{clientJob.budget || '0'}€</span>
-                  {clientJob.photos?.length > 0 && (
-                    <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-white shadow-md shrink-0">
-                      <img src={clientJob.photos[0]} alt="Evidencia" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                </div>
-              </div>
+          {/* Bloque impacto */}
+          {clientJob.urgency && (
+            <div className="rounded-2xl border px-4 py-3 bg-[#1a1f2e] border-white/10">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                Nivel de urgencia
+              </p>
+              <p className={cn(
+                "text-sm font-bold",
+                clientJob.urgency === 'high' && "text-red-400",
+                clientJob.urgency === 'medium' && "text-amber-400",
+                clientJob.urgency === 'low' && "text-green-400"
+              )}>
+                {clientJob.urgency === 'high' && "⚠️ Requiere atención inmediata"}
+                {clientJob.urgency === 'medium' && "⚠️ Recomendado reparar en breve"}
+                {clientJob.urgency === 'low' && "ℹ️ Revisar cuando sea posible"}
+              </p>
+            </div>
+          )}
 
-              {/* Diagnóstico IA */}
-              {clientJob.aiDiagnosis && (
-                <div className="bg-blue-50 p-5 rounded-[24px] border border-blue-100 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-3 opacity-10">
-                    <Wrench size={40} className="text-blue-600" />
-                  </div>
-                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] block mb-3">Informe de Diagnóstico</span>
-                  <p className="text-slate-800 font-bold text-base leading-relaxed relative z-10">
-                    {clientJob.aiDiagnosis}
-                  </p>
+          {/* Presupuesto */}
+          <div className="bg-white rounded-[32px] p-6 shadow-xl border border-slate-100">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Presupuesto Estimado</span>
+            <div className="flex items-center justify-between">
+              <span className="text-4xl font-black text-blue-600">{clientJob.budget || '0'}€</span>
+              {clientJob.photos?.length > 0 && (
+                <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-white shadow-md shrink-0">
+                  <img src={clientJob.photos[0]} alt="Evidencia" className="w-full h-full object-cover" />
                 </div>
               )}
             </div>
           </div>
 
+          {/* Diagnóstico reestructurado */}
+          {(() => {
+            if (!clientJob.aiDiagnosis) return null;
+            const paragraphs = clientJob.aiDiagnosis
+              .split('\n')
+              .map((p: string) => p.trim())
+              .filter((p: string) => p.length > 0);
+            if (paragraphs.length <= 1) {
+              return (
+                <div className="bg-[#1a1f2e] border border-white/10 rounded-2xl p-4">
+                  <p className="text-sm text-slate-200 font-medium leading-relaxed">
+                    {clientJob.aiDiagnosis}
+                  </p>
+                </div>
+              );
+            }
+            const labels = ['Qué ocurre', 'Por qué', 'Riesgo'];
+            return (
+              <div className="space-y-3">
+                {paragraphs.slice(0, 3).map((p: string, i: number) => (
+                  <div key={i} className="bg-[#1a1f2e] border border-white/10 rounded-2xl p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-1">
+                      {labels[i]}
+                    </p>
+                    <p className="text-sm text-slate-200 font-medium leading-relaxed">
+                      {p}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Evidencias del Taller */}
           {(clientJob.photos?.length > 0 || clientJob.audios?.length > 0) && (
             <div className="space-y-4">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">Evidencias del Taller</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">Evidencia real del problema</h3>
               
               {clientJob.photos?.length > 0 && (
                 <div className="space-y-3">
@@ -1589,8 +1626,13 @@ export default function TallerLivePrototype() {
           )}
 
           <div className="pt-4">
+            {!isApproved && (
+              <p className="text-center text-sm text-slate-400 font-semibold mb-4">
+                Puedes aprobar ahora y nos ponemos con ello
+              </p>
+            )}
             {!isApproved ? (
-              <button 
+              <button
                 onClick={handleApproveBudget}
                 className="w-full py-5 bg-emerald-500 text-white rounded-3xl font-black uppercase text-sm shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 active:scale-95 transition-all"
               >
@@ -1607,7 +1649,7 @@ export default function TallerLivePrototype() {
               onClick={() => window.location.href = window.location.origin}
               className="w-full py-5 mt-3 text-slate-400 font-black uppercase text-xs hover:text-slate-600 transition-colors"
             >
-              Contactar con el taller
+              ¿Tienes dudas? Habla con nosotros
             </button>
           </div>
 
