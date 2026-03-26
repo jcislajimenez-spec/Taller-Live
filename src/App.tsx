@@ -32,7 +32,7 @@ import { transcribeAndDiagnose, isGeminiConfigured } from './services/geminiServ
 import { AudioRecorder } from './services/audioService';
 
 // --- Tipos ---
-type JobStatus = 'waiting' | 'diagnosed' | 'waiting_customer' | 'repairing' | 'ready' | 'awaiting_diagnosis' | 'diagnosing';
+type JobStatus = 'waiting' | 'diagnosed' | 'waiting_customer' | 'repairing' | 'ready' | 'delivered' | 'awaiting_diagnosis' | 'diagnosing';
 type Urgency = 'low' | 'medium' | 'high';
 
 // --- Constantes de configuración ---
@@ -91,6 +91,7 @@ const StatusBadge = ({ status }: { status: JobStatus }) => {
     waiting_customer: { label: 'En espera cliente',  color: 'bg-[#F2E8D0] text-[#7A5C2A] border-[#CDAC70]' },
     repairing:        { label: 'En preparación',     color: 'bg-[#D5E2F0] text-[#2E4870] border-[#7AAAD0]' },
     ready:            { label: 'Listo ✓',            color: 'bg-[#C8E6C4] text-[#2E5E35] border-[#7AB87A]' },
+    delivered:        { label: 'Entregado',           color: 'bg-[#E0E0E0] text-[#505050] border-[#C0C0C0]' },
     // Legado (datos existentes en BD)
     awaiting_diagnosis: { label: 'En espera',        color: 'bg-[#EDEDED] text-[#787878] border-[#D0D0D0]' },
     diagnosing:         { label: 'Diagnosticado',     color: 'bg-[#F0EBE0] text-[#7B6347] border-[#D4C4A0]' },
@@ -290,6 +291,7 @@ export default function TallerLivePrototype() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filter, setFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isSavingBudget, setIsSavingBudget] = useState(false);
@@ -1130,6 +1132,20 @@ export default function TallerLivePrototype() {
     }
   }, [viewMode, isSupabaseConnected, fetchJobsFromSupabase]);
 
+  const handleDeliverJob = async (jobId: string) => {
+    setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? { ...j, status: 'delivered' } : j));
+    if (isSupabaseConnected) {
+      try {
+        const { error } = await supabase.from('orders').update({ status: 'delivered' }).eq('id', jobId);
+        if (error) throw error;
+        notify('Vehículo marcado como entregado', 'success');
+      } catch (e: any) {
+        setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? { ...j, status: 'ready' } : j));
+        notify('Error al marcar como entregado', 'error');
+      }
+    }
+  };
+
   const handleDeleteJob = async (jobId: string) => {
     // Optimistic update
     setJobs(prev => prev.filter(j => String(j.id) !== String(jobId)));
@@ -1773,18 +1789,38 @@ export default function TallerLivePrototype() {
             )}
             <div className="flex justify-between items-center px-1">
               <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Cola de Trabajo Activa</h2>
-              <div className="flex items-center gap-1.5 text-blue-500 font-black text-xs uppercase cursor-pointer">
+              <div className="flex items-center gap-1.5 text-blue-500 font-black text-xs uppercase cursor-pointer" onClick={() => setStatusFilter('all')}>
                 <Filter size={14} />
                 <span>Filtrar</span>
               </div>
             </div>
 
+            {/* Chips de filtro por estado */}
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              {[
+                { key: 'all',        label: 'Todos' },
+                { key: 'waiting',    label: 'En espera' },
+                { key: 'diagnosed',  label: 'Diagnosticados' },
+                { key: 'validation', label: 'Esp. cliente' },
+                { key: 'repairing',  label: 'En reparación' },
+                { key: 'ready',      label: 'Listos' },
+              ].map(chip => (
+                <button
+                  key={chip.key}
+                  onClick={() => setStatusFilter(chip.key)}
+                  className={cn(
+                    "shrink-0 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors",
+                    statusFilter === chip.key
+                      ? "bg-blue-600 text-white border-blue-500"
+                      : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10"
+                  )}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+
             {(() => {
-              const filtered = jobs.filter(j =>
-                (j.plate || '').toLowerCase().includes((filter || '').toLowerCase()) ||
-                (j.model || '').toLowerCase().includes((filter || '').toLowerCase()) ||
-                (j.customer || '').toLowerCase().includes((filter || '').toLowerCase())
-              );
               const groups = [
                 { key: 'waiting',    label: 'En espera',             statuses: ['waiting', 'awaiting_diagnosis'] },
                 { key: 'diagnosed',  label: 'Diagnosticados',         statuses: ['diagnosed', 'diagnosing'] },
@@ -1792,10 +1828,18 @@ export default function TallerLivePrototype() {
                 { key: 'repairing',  label: 'En preparación',         statuses: ['repairing'] },
                 { key: 'ready',      label: 'Listos para entrega',    statuses: ['ready'] },
               ];
+              const activeGroups = statusFilter === 'all' ? groups : groups.filter(g => g.key === statusFilter);
+              const textFiltered = jobs.filter(j =>
+                j.status !== 'delivered' && (
+                  (j.plate || '').toLowerCase().includes((filter || '').toLowerCase()) ||
+                  (j.model || '').toLowerCase().includes((filter || '').toLowerCase()) ||
+                  (j.customer || '').toLowerCase().includes((filter || '').toLowerCase())
+                )
+              );
               return (
                 <AnimatePresence>
-                  {groups.flatMap(group => {
-                    const groupJobs = filtered.filter(j => (group.statuses as string[]).includes(j.status));
+                  {activeGroups.flatMap(group => {
+                    const groupJobs = textFiltered.filter(j => (group.statuses as string[]).includes(j.status));
                     if (groupJobs.length === 0) return [];
                     return [
                       <div key={`hdr-${group.key}`} className="flex items-center gap-2 px-1 mt-3 mb-1">
@@ -1828,13 +1872,22 @@ export default function TallerLivePrototype() {
                       </span>
                     </div>
                       <div className="flex items-center gap-2">
+                        {job.status === 'ready' && (
+                          <button
+                            onClick={() => handleDeliverJob(job.id)}
+                            className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-900/40 text-emerald-400 border border-emerald-700/40 hover:bg-emerald-800/50 transition-colors"
+                            title="Marcar como entregado"
+                          >
+                            Entregado
+                          </button>
+                        )}
                         <button
                           onClick={() => handleEditJob(job)}
                           className="p-2 text-slate-600 hover:text-blue-400 transition-colors"
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => setDeleteConfirmId(job.id)}
                           className="p-2 text-slate-600 hover:text-red-400 transition-colors"
                         >
@@ -2158,18 +2211,54 @@ export default function TallerLivePrototype() {
         )}
 
         {activeTab === 'historial' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            className="space-y-3"
           >
-            <div className="bg-[#131D3B] rounded-[40px] p-12 text-center border border-white/10">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
-                <History size={40} className="text-slate-300" />
-              </div>
-              <h3 className="text-xl font-black text-white uppercase mb-2">Historial de Trabajos</h3>
-              <p className="text-slate-400 font-medium">Próximamente podrás consultar todos los trabajos finalizados aquí.</p>
-            </div>
+            <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] px-1">Trabajos Entregados</h2>
+            {(() => {
+              const delivered = jobs.filter(j => j.status === 'delivered').sort((a, b) => {
+                return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+              });
+              if (delivered.length === 0) return (
+                <div className="bg-[#131D3B] rounded-[32px] p-12 text-center border border-white/10">
+                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <History size={32} className="text-slate-500" />
+                  </div>
+                  <p className="text-slate-400 font-bold text-sm">No hay trabajos entregados aún.</p>
+                </div>
+              );
+              return delivered.map(job => (
+                <div key={job.id} className="card-industrial rounded-[16px] px-4 py-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <StatusBadge status={job.status} />
+                    <span className="text-[10px] text-slate-500 font-bold">
+                      {job.created_at ? new Date(job.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : job.entryTime}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xl font-black text-white tracking-tighter leading-none">{job.plate}</span>
+                    <p className="text-sm text-slate-400 font-semibold mt-0.5">{job.model}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-300 uppercase">{job.customer}</span>
+                    {job.public_token && (
+                      <button
+                        onClick={() => {
+                          const url = `${window.location.origin}${window.location.pathname}?t=${job.public_token}`;
+                          window.open(url, '_blank');
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-900/40 text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-700/30 hover:bg-blue-800/50 transition-colors"
+                      >
+                        <FileText size={12} />
+                        Ver informe
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ));
+            })()}
           </motion.div>
         )}
       </main>
@@ -2612,8 +2701,7 @@ export default function TallerLivePrototype() {
           setFormData({ plate: '', model: '', customerName: '', customerPhone: '', description: '', urgency: 'medium' });
           setIsModalOpen(true);
         }}
-        className="fixed bottom-[68px] right-5 w-11 h-11 text-white rounded-full flex items-center justify-center active:scale-90 transition-all z-50"
-        style={{ background: 'linear-gradient(145deg, #3a4060, #1e2030)', boxShadow: '0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)' }}
+        className="fixed bottom-[76px] right-5 w-14 h-14 bg-blue-600 hover:bg-blue-500 text-white rounded-full flex items-center justify-center active:scale-90 transition-all z-50 shadow-lg shadow-blue-500/40"
       >
         <Plus size={24} />
       </button>
