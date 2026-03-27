@@ -346,6 +346,12 @@ export default function TallerLivePrototype() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [vehicleSearch, setVehicleSearch] = useState('');
 
+  // Auth & workshop dinámico
+  const [user, setUser] = useState<any>(null);
+  const [workshopId, setWorkshopId] = useState<string>(CURRENT_WORKSHOP_ID);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [allWorkshops, setAllWorkshops] = useState<{ id: string; name: string }[]>([]);
+
   // Detección honesta de Supabase
   const isSupabaseConnected = React.useMemo(() => {
     const url = import.meta.env.VITE_SUPABASE_URL;
@@ -357,7 +363,7 @@ export default function TallerLivePrototype() {
   // FUNCIÓN CENTRAL: Supabase = única fuente de verdad
   // =============================================
   const fetchJobsFromSupabase = React.useCallback(async (): Promise<any[]> => {
-    if (!isSupabaseConnected) return [];
+    if (!isSupabaseConnected || !workshopId) return [];
     try {
       const { data } = await supabase
         .from('orders')
@@ -367,7 +373,7 @@ export default function TallerLivePrototype() {
           customer:customers(*),
           media:order_media(*)
         `)
-        .eq('workshop_id', CURRENT_WORKSHOP_ID)
+        .eq('workshop_id', workshopId)
         .order('created_at', { ascending: false });
 
 
@@ -378,7 +384,7 @@ export default function TallerLivePrototype() {
       console.error('Error fetching jobs from Supabase:', e);
       return [];
     }
-  }, [isSupabaseConnected]);
+  }, [isSupabaseConnected, workshopId]);
 
   // Refresca solo 1 job concreto desde Supabase (tras subir foto/audio)
   const refreshSingleJob = React.useCallback(async (jobId: string) => {
@@ -427,6 +433,52 @@ export default function TallerLivePrototype() {
     description: '',
     urgency: 'medium' as Urgency
   });
+
+  // --- Auth: detectar usuario y asignar workshopId desde profiles ---
+  useEffect(() => {
+    if (!isSupabaseConnected) return;
+
+    const loadUserAndWorkshop = async (authUser: any) => {
+      if (!authUser) return;
+      setUser(authUser);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('workshop_id, role')
+        .eq('id', authUser.id)
+        .single();
+
+      if (!profile) return;
+
+      if (profile.role === 'superadmin') {
+        setIsSuperAdmin(true);
+        const { data: workshops } = await supabase.from('workshops').select('id, name');
+        if (workshops) setAllWorkshops(workshops);
+      }
+
+      if (profile.workshop_id) {
+        setWorkshopId(profile.workshop_id);
+      }
+    };
+
+    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+      loadUserAndWorkshop(authUser);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      loadUserAndWorkshop(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [isSupabaseConnected]);
+
+  // --- Recargar jobs del taller cuando workshopId cambie ---
+  useEffect(() => {
+    if (!isSupabaseConnected || !workshopId) return;
+    fetchJobsFromSupabase().then(fresh => {
+      if (fresh.length > 0) setJobs(fresh);
+    });
+  }, [workshopId, fetchJobsFromSupabase, isSupabaseConnected]);
 
   // --- Cargar Clientes y Vehículos ---
   useEffect(() => {
@@ -589,7 +641,6 @@ export default function TallerLivePrototype() {
               media:order_media(*)
             `)
             .eq('public_token', tokenParam)
-            .eq('workshop_id', CURRENT_WORKSHOP_ID)
             .single();
 
           if (data) {
@@ -736,11 +787,7 @@ export default function TallerLivePrototype() {
         }
       }
 
-      // Cargar todos los trabajos para el modo taller (Supabase = fuente de verdad)
-      const supabaseJobs = await fetchJobsFromSupabase();
-      if (supabaseJobs.length > 0) {
-        setJobs(supabaseJobs);
-      }
+      // Los trabajos del taller se cargan en el useEffect que depende de workshopId
     }
 
     initializeApp();
@@ -1021,7 +1068,7 @@ export default function TallerLivePrototype() {
             budget: Number(budgetToSave),
             total_estimated: Number(budgetToSave),
             description: diagnosisToSave,
-            workshop_id: CURRENT_WORKSHOP_ID,
+            workshop_id: workshopId,
             ...(shouldAdvance ? { status: 'diagnosing' } : {})
           })
           .eq('id', jobId);
@@ -1255,7 +1302,7 @@ export default function TallerLivePrototype() {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!CURRENT_WORKSHOP_ID) {
+    if (!workshopId) {
       console.error("ERROR: WORKSHOP_ID no configurado");
       notify("Error crítico: falta configuración del taller", 'error');
       setIsLoading(false);
@@ -1344,7 +1391,7 @@ export default function TallerLivePrototype() {
           .insert([{
             vehicle_id: vehicleId,
             customer_id: customerId,
-            workshop_id: CURRENT_WORKSHOP_ID,
+            workshop_id: workshopId,
             status: 'waiting',
             urgency: formData.urgency,
             description: formData.description,
@@ -1818,8 +1865,22 @@ export default function TallerLivePrototype() {
 
           {/* Centro: Empresa — solo desktop */}
           <div className="hidden sm:flex flex-1 flex-col text-center min-w-0">
-            <p className="text-xl font-bold uppercase text-white leading-none">{WORKSHOP_NAME.toUpperCase()}</p>
-            {WORKSHOP_CITY && <p className="text-sm text-blue-400 mt-1">{WORKSHOP_CITY}</p>}
+            {isSuperAdmin ? (
+              <select
+                value={workshopId}
+                onChange={(e) => setWorkshopId(e.target.value)}
+                className="bg-white/10 border border-white/20 rounded-xl py-2 px-4 text-white font-bold text-sm mx-auto max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                {allWorkshops.map(w => (
+                  <option key={w.id} value={w.id} className="bg-slate-900 text-white">{w.name}</option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <p className="text-xl font-bold uppercase text-white leading-none">{WORKSHOP_NAME.toUpperCase()}</p>
+                {WORKSHOP_CITY && <p className="text-sm text-blue-400 mt-1">{WORKSHOP_CITY}</p>}
+              </>
+            )}
           </div>
 
           {/* Derecha: Acciones */}
@@ -1847,8 +1908,22 @@ export default function TallerLivePrototype() {
 
         {/* Fila 2+3: Empresa — solo móvil */}
         <div className="sm:hidden text-center mt-2 mb-2">
-          <p className="text-lg font-bold uppercase text-white leading-tight">{WORKSHOP_NAME.toUpperCase()}</p>
-          {WORKSHOP_CITY && <p className="text-xs text-blue-400 mt-1">{WORKSHOP_CITY}</p>}
+          {isSuperAdmin ? (
+            <select
+              value={workshopId}
+              onChange={(e) => setWorkshopId(e.target.value)}
+              className="bg-white/10 border border-white/20 rounded-xl py-2 px-4 text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            >
+              {allWorkshops.map(w => (
+                <option key={w.id} value={w.id} className="bg-slate-900 text-white">{w.name}</option>
+              ))}
+            </select>
+          ) : (
+            <>
+              <p className="text-lg font-bold uppercase text-white leading-tight">{WORKSHOP_NAME.toUpperCase()}</p>
+              {WORKSHOP_CITY && <p className="text-xs text-blue-400 mt-1">{WORKSHOP_CITY}</p>}
+            </>
+          )}
         </div>
 
         {/* Fila 4: Buscador */}
@@ -2186,7 +2261,7 @@ export default function TallerLivePrototype() {
                               .update({
                                 name: newName,
                                 phone: newPhone,
-                                workshop_id: CURRENT_WORKSHOP_ID
+                                workshop_id: workshopId
                               })
                               .eq('id', customer.id);
                             if (error) console.error("ERROR UPDATE CUSTOMER:", error);
@@ -2351,7 +2426,7 @@ export default function TallerLivePrototype() {
                       if (isSupabaseConnected) {
                         const { data, error } = await supabase
                           .from('vehicles')
-                          .insert([{ plate, model, customer_id: addVehicleCustomerId, workshop_id: CURRENT_WORKSHOP_ID }])
+                          .insert([{ plate, model, customer_id: addVehicleCustomerId, workshop_id: workshopId }])
                           .select()
                           .single();
                         if (!error && data) {
