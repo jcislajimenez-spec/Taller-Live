@@ -1220,6 +1220,37 @@ export default function TallerLivePrototype() {
     }
   };
 
+  const handlePlateLookup = async (plate: string) => {
+    const normalized = plate.toUpperCase().trim();
+    if (normalized.length < 6) {
+      setSelectedVehicleId(null);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*, customer:customers(id, name, phone)')
+        .eq('plate', normalized)
+        .maybeSingle();
+      if (error) { console.warn('[handlePlateLookup] Error:', error.message); return; }
+      if (data) {
+        setSelectedVehicleId(data.id);
+        setSelectedCustomerId(data.customer?.id ?? null);
+        setFormData(prev => ({
+          ...prev,
+          plate: normalized,
+          model: data.model ?? prev.model,
+          customerName: data.customer?.name ?? prev.customerName,
+          customerPhone: data.customer?.phone ?? prev.customerPhone,
+        }));
+      } else {
+        setSelectedVehicleId(null);
+      }
+    } catch (e) {
+      console.warn('[handlePlateLookup] Excepción:', e);
+    }
+  };
+
   const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -2694,17 +2725,21 @@ export default function TallerLivePrototype() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Matrícula</label>
-                      <input 
+                      <input
                         required
                         placeholder="1234-ABC"
                         className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all uppercase"
                         value={formData.plate}
-                        onChange={(e) => setFormData({...formData, plate: e.target.value})}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          setFormData({...formData, plate: value});
+                          if (isSupabaseConnected) handlePlateLookup(value);
+                        }}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Modelo</label>
-                      <input 
+                      <input
                         required
                         placeholder="Seat Leon"
                         className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
