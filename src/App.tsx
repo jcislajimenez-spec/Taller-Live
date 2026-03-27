@@ -311,6 +311,7 @@ export default function TallerLivePrototype() {
   const [isApproved, setIsApproved] = useState(false);
   const [activeTab, setActiveTab] = useState<'taller' | 'historial' | 'clientes' | 'ajustes'>('taller');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deliverConfirmId, setDeliverConfirmId] = useState<string | null>(null);
   const [isClientLoading, setIsClientLoading] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return !!params.get('orderId');
@@ -1916,7 +1917,7 @@ export default function TallerLivePrototype() {
                       <div className="flex items-center gap-2">
                         {job.status === 'ready' && (
                           <button
-                            onClick={() => handleDeliverJob(job.id)}
+                            onClick={() => setDeliverConfirmId(job.id)}
                             className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-900/40 text-emerald-400 border border-emerald-700/40 hover:bg-emerald-800/50 transition-colors"
                             title="Marcar como entregado"
                           >
@@ -2029,121 +2030,51 @@ export default function TallerLivePrototype() {
         )}
 
         {activeTab === 'ajustes' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="space-y-6"
+            className="space-y-4"
           >
-            <div className="bg-[#131D3B] rounded-[32px] p-8 border border-white/10">
-              <h3 className="text-xl font-black text-white uppercase tracking-tight mb-4">Configuración de Sincronización</h3>
-              
-              <div className="bg-blue-900/30 p-4 rounded-2xl mb-6 border border-blue-500/20">
-                <h4 className="text-[10px] font-black text-blue-300 uppercase mb-2 tracking-widest">⚠️ IMPORTANTE: Activar Realtime</h4>
-                <p className="text-[10px] text-blue-400 font-bold leading-relaxed">
-                  Para que el dashboard se actualice solo, debes ir a tu panel de Supabase: <br/>
-                  <b>Database → Replication → 'supabase_realtime' → Source: 'public' → Enable 'orders' table.</b>
-                </p>
+            {/* Información del taller */}
+            <div className="bg-[#131D3B] rounded-[32px] p-8 border border-white/10 space-y-4">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Taller</h3>
+              <div>
+                <p className="text-2xl font-black text-white tracking-tight">{WORKSHOP_NAME}</p>
+                {WORKSHOP_CITY && <p className="text-sm text-slate-400 font-bold mt-1">{WORKSHOP_CITY}</p>}
               </div>
+            </div>
 
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#0B132B] border border-white/10 mb-6">
+            {/* Estado de conexión */}
+            <div className="bg-[#131D3B] rounded-[32px] p-6 border border-white/10">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Estado del sistema</h3>
+              <div className="flex items-center gap-4">
                 <div className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center",
+                  "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
                   isSupabaseConnected ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"
                 )}>
-                  <RefreshCw size={24} className={isSupabaseConnected ? "animate-spin-slow" : ""} />
+                  <RefreshCw size={20} />
                 </div>
                 <div>
                   <p className="text-sm font-black text-white uppercase">
-                    {isSupabaseConnected ? "Conexión Activa" : "Modo Local Activo"}
+                    {isSupabaseConnected ? "Sincronización activa" : "Sin conexión"}
                   </p>
-                  <p className="text-xs text-slate-400 font-medium">
-                    {isSupabaseConnected 
-                      ? "Tus datos se sincronizan en tiempo real con la nube." 
-                      : "Los datos solo se guardan en este navegador."}
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">
+                    {isSupabaseConnected
+                      ? "Los datos se sincronizan en tiempo real."
+                      : "Los datos se guardan solo en este dispositivo."}
                   </p>
-                </div>
-              </div>
-
-              {!isSupabaseConnected && (
-                <div className="space-y-4">
-                  <p className="text-sm text-slate-400 font-medium leading-relaxed">
-                    Para que el móvil y el PC se hablen, necesitas conectar <b>Supabase</b>. Sigue estos pasos:
-                  </p>
-                  <ol className="space-y-3 text-xs text-slate-400 font-bold uppercase tracking-wide">
-                    <li className="flex gap-3">
-                      <span className="bg-blue-900/40 text-blue-400 w-5 h-5 rounded-full flex items-center justify-center shrink-0">1</span>
-                      <span>Ve a <a href="https://supabase.com" target="_blank" className="text-blue-600 underline">supabase.com</a> y crea un proyecto gratuito.</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="bg-blue-900/40 text-blue-400 w-5 h-5 rounded-full flex items-center justify-center shrink-0">2</span>
-                      <span>Copia la <b>URL</b> y la <b>Anon Key</b> de la pestaña "API Settings".</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="bg-blue-900/40 text-blue-400 w-5 h-5 rounded-full flex items-center justify-center shrink-0">3</span>
-                      <span>Pégalas en las variables de entorno de AI Studio (VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY).</span>
-                    </li>
-                  </ol>
-                  <div className="mt-6 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                    <p className="text-[10px] text-amber-700 font-black uppercase tracking-widest mb-1">⚠️ Importante</p>
-                    <p className="text-[10px] text-amber-600 font-bold leading-tight">
-                      Sin esto, las fotos y audios que subas en el taller no aparecerán en el móvil del cliente.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-8 pt-8 border-t border-white/10 -mx-8 px-8 pb-8">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-blue-500 p-2 rounded-lg text-white">
-                    <SettingsIcon size={20} />
-                  </div>
-                  <h3 className="text-xl font-black text-white uppercase tracking-tight">URL Pública del Taller</h3>
-                </div>
-                
-                <p className="text-sm text-slate-400 font-bold mb-4 leading-tight">
-                  ⚠️ ESTE PASO ES OBLIGATORIO PARA QUE FUNCIONE EL MÓVIL DEL CLIENTE:
-                </p>
-                
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-1">Pega aquí la "Shared App URL" de AI Studio</label>
-                    <input 
-                      type="text"
-                      className="w-full bg-[#0B132B] border border-white/20 rounded-2xl py-5 px-6 text-sm font-black text-blue-300 focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-600"
-                      value={publicUrl}
-                      onChange={(e) => {
-                        setPublicUrl(e.target.value);
-                        localStorage.setItem('tallerlive_public_url', e.target.value);
-                      }}
-                      placeholder="https://ais-pre-..."
-                    />
-                  </div>
-                  
-                  <div className="p-4 bg-[#0B132B] border border-white/10 rounded-2xl">
-                    <p className="text-[11px] text-slate-400 font-medium leading-snug">
-                      1. Ve a la pestaña <b>Integrations</b> de AI Studio (arriba).<br/>
-                      2. Copia la <b>Shared App URL</b> (la que empieza por <b>ais-pre-</b>).<br/>
-                      3. Pégala en el cuadro azul de arriba.
-                    </p>
-                  </div>
-
-                  {publicUrl.includes('-dev-') && (
-                    <div className="p-4 bg-red-50 border-2 border-red-200 rounded-2xl animate-pulse">
-                      <p className="text-[10px] font-black text-red-600 uppercase mb-1">❌ ERROR DE CONFIGURACIÓN</p>
-                      <p className="text-[11px] text-red-700 font-bold">
-                        Estás usando la URL de desarrollo. Los clientes verán "Página no encontrada". 
-                        Debes usar la URL que empieza por <b>ais-pre-</b>.
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#050A1F] rounded-[32px] p-8 shadow-xl text-white">
-              <h3 className="text-lg font-black uppercase tracking-tight mb-2">Sobre TallerLive</h3>
-              <p className="text-blue-400 text-xs font-bold mb-6">Versión 1.2.0 - {WORKSHOP_NAME}</p>
-              <button 
+            {/* Sobre la app */}
+            <div className="bg-[#050A1F] rounded-[32px] p-8 shadow-xl text-white space-y-6">
+              <div>
+                <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Aplicación</h3>
+                <p className="text-sm font-black text-white">TallerLive</p>
+                <p className="text-xs text-slate-400 font-bold mt-1">Versión 1.2.0</p>
+              </div>
+              <button
                 onClick={() => window.location.reload()}
                 className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border border-white/10"
               >
@@ -2304,6 +2235,43 @@ export default function TallerLivePrototype() {
           </motion.div>
         )}
       </main>
+
+        {/* MODAL: CONFIRMACIÓN ENTREGADO */}
+        <AnimatePresence>
+          {deliverConfirmId && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-[#131D3B] rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-white/10 text-center"
+              >
+                <div className="w-20 h-20 bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle size={40} className="text-emerald-400" />
+                </div>
+                <h3 className="text-2xl font-black text-white mb-2">¿Vehículo entregado?</h3>
+                <p className="text-slate-400 font-bold mb-8">¿Confirmas que el vehículo ha sido entregado al cliente?</p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setDeliverConfirmId(null)}
+                    className="flex-1 py-4 bg-white/10 text-slate-300 rounded-2xl font-black uppercase tracking-widest hover:bg-white/20 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleDeliverJob(deliverConfirmId);
+                      setDeliverConfirmId(null);
+                    }}
+                    className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-900 transition-all"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* MODAL: CONFIRMACIÓN ELIMINAR */}
         <AnimatePresence>
