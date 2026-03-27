@@ -255,6 +255,7 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<{ blo
 // Usada por fetchJobsFromSupabase y refreshSingleJob.
 const mapOrderToJob = (order: any): any => ({
   id: order.id,
+  vehicle_id: order.vehicle_id,
   plate: order.vehicle?.plate,
   model: order.vehicle?.model,
   customer: order.customer?.name,
@@ -1200,6 +1201,15 @@ export default function TallerLivePrototype() {
           urgency: formData.urgency,
           description: formData.description
         }).eq('id', editingJob.id);
+
+        if (editingJob.vehicle_id) {
+          await supabase.from('vehicles').update({
+            plate: formData.plate.toUpperCase().trim(),
+            model: formData.model.trim()
+          }).eq('id', editingJob.vehicle_id);
+        } else {
+          console.warn('[handleUpdateJob] vehicle_id no disponible — plate/model no persistidos en BD');
+        }
       } catch (e) {
         console.error('Error actualizando en Supabase:', e);
       }
