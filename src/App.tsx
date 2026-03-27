@@ -313,6 +313,10 @@ export default function TallerLivePrototype() {
   const [activeTab, setActiveTab] = useState<'taller' | 'historial' | 'clientes' | 'ajustes'>('taller');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deliverConfirmId, setDeliverConfirmId] = useState<string | null>(null);
+  const [addVehicleCustomerId, setAddVehicleCustomerId] = useState<string | null>(null);
+  const [newVehiclePlate, setNewVehiclePlate] = useState('');
+  const [newVehicleModel, setNewVehicleModel] = useState('');
+  const [deleteVehicleId, setDeleteVehicleId] = useState<string | null>(null);
   const [isClientLoading, setIsClientLoading] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return !!params.get('orderId');
@@ -2174,9 +2178,22 @@ export default function TallerLivePrototype() {
                         <div key={vehicle.id} className="bg-[#0B132B] border border-white/10 px-3 py-2 rounded-xl flex items-center gap-2">
                           <span className="text-[10px] font-black text-white">{vehicle.plate}</span>
                           <span className="text-[10px] font-bold text-slate-400">{vehicle.model}</span>
+                          <button
+                            onClick={() => setDeleteVehicleId(vehicle.id)}
+                            className="ml-1 text-slate-600 hover:text-red-400 transition-colors"
+                          >
+                            <X size={12} />
+                          </button>
                         </div>
                       ))}
-                      <button className="bg-blue-900/30 text-blue-400 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-500/20 hover:bg-blue-900/50 transition-colors">
+                      <button
+                        onClick={() => {
+                          setAddVehicleCustomerId(customer.id);
+                          setNewVehiclePlate('');
+                          setNewVehicleModel('');
+                        }}
+                        className="bg-blue-900/30 text-blue-400 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-500/20 hover:bg-blue-900/50 transition-colors"
+                      >
                         + Añadir
                       </button>
                     </div>
@@ -2245,6 +2262,133 @@ export default function TallerLivePrototype() {
           </motion.div>
         )}
       </main>
+
+        {/* MODAL: AÑADIR VEHÍCULO */}
+        <AnimatePresence>
+          {addVehicleCustomerId && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-[#131D3B] rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-white/10"
+              >
+                <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tight">Añadir Vehículo</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Matrícula *</label>
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="1234-ABC"
+                      className="w-full bg-[#0B132B] border border-white/20 rounded-2xl py-4 px-5 text-lg font-black text-white focus:border-blue-500 focus:outline-none transition-all uppercase placeholder:text-slate-600"
+                      value={newVehiclePlate}
+                      onChange={e => setNewVehiclePlate(e.target.value.toUpperCase())}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Modelo</label>
+                    <input
+                      type="text"
+                      placeholder="Seat León"
+                      className="w-full bg-[#0B132B] border border-white/20 rounded-2xl py-4 px-5 text-sm font-bold text-white focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-600"
+                      value={newVehicleModel}
+                      onChange={e => setNewVehicleModel(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-4 mt-8">
+                  <button
+                    onClick={() => setAddVehicleCustomerId(null)}
+                    className="flex-1 py-4 bg-white/10 text-slate-300 rounded-2xl font-black uppercase tracking-widest hover:bg-white/20 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    disabled={!newVehiclePlate.trim()}
+                    onClick={async () => {
+                      if (!newVehiclePlate.trim()) return;
+                      const plate = newVehiclePlate.toUpperCase().trim();
+                      const model = newVehicleModel.trim();
+                      if (isSupabaseConnected) {
+                        const { data, error } = await supabase
+                          .from('vehicles')
+                          .insert([{ plate, model, customer_id: addVehicleCustomerId, workshop_id: CURRENT_WORKSHOP_ID }])
+                          .select()
+                          .single();
+                        if (!error && data) {
+                          setVehicles(prev => [...prev, data]);
+                        } else if (error) {
+                          console.error('Error añadiendo vehículo:', error);
+                          notify('Error al añadir vehículo', 'error');
+                          return;
+                        }
+                      } else {
+                        setVehicles(prev => [...prev, {
+                          id: `temp-${Date.now()}`,
+                          plate,
+                          model,
+                          customer_id: addVehicleCustomerId!,
+                          created_at: new Date().toISOString()
+                        }]);
+                      }
+                      setAddVehicleCustomerId(null);
+                    }}
+                    className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL: CONFIRMAR ELIMINAR VEHÍCULO */}
+        <AnimatePresence>
+          {deleteVehicleId && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-[#131D3B] rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-white/10 text-center"
+              >
+                <div className="w-20 h-20 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Trash2 size={40} className="text-red-500" />
+                </div>
+                <h3 className="text-2xl font-black text-white mb-2">¿Eliminar vehículo?</h3>
+                <p className="text-slate-400 font-bold mb-8">El vehículo se eliminará del sistema. Los trabajos asociados no se verán afectados.</p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setDeleteVehicleId(null)}
+                    className="flex-1 py-4 bg-white/10 text-slate-300 rounded-2xl font-black uppercase tracking-widest hover:bg-white/20 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (isSupabaseConnected) {
+                        const { error } = await supabase.from('vehicles').delete().eq('id', deleteVehicleId);
+                        if (error) {
+                          console.error('Error eliminando vehículo:', error);
+                          notify('Error al eliminar vehículo', 'error');
+                          setDeleteVehicleId(null);
+                          return;
+                        }
+                      }
+                      setVehicles(prev => prev.filter(v => v.id !== deleteVehicleId));
+                      setDeleteVehicleId(null);
+                    }}
+                    className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* MODAL: CONFIRMACIÓN ENTREGADO */}
         <AnimatePresence>
