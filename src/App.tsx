@@ -1641,24 +1641,31 @@ export default function TallerLivePrototype() {
           )}
 
           <div className="pt-4">
-            {!isApproved && (
+            {clientJob.status === 'waiting_customer' && !isApproved && (
               <p className="text-center text-sm text-slate-400 font-semibold mb-4">
                 Puedes aprobar ahora y nos ponemos con ello
               </p>
             )}
-            {!isApproved ? (
-              <button
-                onClick={handleApproveBudget}
-                className="w-full py-5 bg-emerald-500 text-white rounded-3xl font-black uppercase text-sm shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 active:scale-95 transition-all"
-              >
-                <CheckCircle2 size={20} />
-                Aprobar Presupuesto
-              </button>
-            ) : (
-              <div className="w-full py-5 bg-emerald-100 text-emerald-700 rounded-3xl font-black uppercase text-sm flex items-center justify-center gap-3 border-2 border-emerald-200">
-                <CheckCircle2 size={20} />
-                Presupuesto Aprobado
-              </div>
+            {clientJob.status === 'waiting_customer' && (
+              !isApproved ? (
+                <button
+                  onClick={handleApproveBudget}
+                  className="w-full py-5 bg-emerald-500 text-white rounded-3xl font-black uppercase text-sm shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 active:scale-95 transition-all"
+                >
+                  <CheckCircle2 size={20} />
+                  Aprobar Presupuesto
+                </button>
+              ) : (
+                <div className="w-full py-5 bg-emerald-100 text-emerald-700 rounded-3xl font-black uppercase text-sm flex items-center justify-center gap-3 border-2 border-emerald-200">
+                  <CheckCircle2 size={20} />
+                  Presupuesto Aprobado
+                </div>
+              )
+            )}
+            {clientJob.status === 'delivered' && (
+              <p className="text-center text-sm font-bold text-slate-400">
+                Vehículo entregado. Gracias por confiar en nosotros.
+              </p>
             )}
             <button 
               onClick={() => window.location.href = window.location.origin}
@@ -2372,7 +2379,11 @@ export default function TallerLivePrototype() {
                         const { error } = await supabase.from('vehicles').delete().eq('id', deleteVehicleId);
                         if (error) {
                           console.error('Error eliminando vehículo:', error);
-                          notify('Error al eliminar vehículo', 'error');
+                          if (error.message?.includes('violates foreign key constraint')) {
+                            notify('No puedes eliminar este vehículo porque tiene trabajos asociados', 'error');
+                          } else {
+                            notify('Error al eliminar vehículo', 'error');
+                          }
                           setDeleteVehicleId(null);
                           return;
                         }
