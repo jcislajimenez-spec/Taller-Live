@@ -2672,10 +2672,37 @@ export default function TallerLivePrototype() {
                 </div>
 
                 <form onSubmit={handleCreateJob} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Matrícula</label>
+                      <input
+                        required
+                        placeholder="1234-ABC"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all uppercase"
+                        value={formData.plate}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          setFormData({...formData, plate: value});
+                          if (isSupabaseConnected) handlePlateLookup(value);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Modelo</label>
+                      <input
+                        required
+                        placeholder="Seat Leon"
+                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
+                        value={formData.model}
+                        onChange={(e) => setFormData({...formData, model: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cliente</label>
                     <div className="relative">
-                      <input 
+                      <input
                         placeholder="Buscar o escribir nuevo cliente..."
                         className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
                         value={formData.customerName}
@@ -2711,40 +2738,13 @@ export default function TallerLivePrototype() {
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Móvil WhatsApp</label>
-                      <input 
+                      <input
                         required
                         type="tel"
                         placeholder="600 000 000"
                         className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
                         value={formData.customerPhone}
                         onChange={(e) => setFormData({...formData, customerPhone: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Matrícula</label>
-                      <input
-                        required
-                        placeholder="1234-ABC"
-                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all uppercase"
-                        value={formData.plate}
-                        onChange={(e) => {
-                          const value = e.target.value.toUpperCase();
-                          setFormData({...formData, plate: value});
-                          if (isSupabaseConnected) handlePlateLookup(value);
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Modelo</label>
-                      <input
-                        required
-                        placeholder="Seat Leon"
-                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-4 px-5 text-lg font-black focus:border-blue-500 focus:outline-none transition-all"
-                        value={formData.model}
-                        onChange={(e) => setFormData({...formData, model: e.target.value})}
                       />
                     </div>
                   </div>
