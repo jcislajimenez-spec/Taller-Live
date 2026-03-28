@@ -570,10 +570,14 @@ export default function TallerLivePrototype() {
     const loadUserAndWorkshop = async (authUser: any) => {
       if (!authUser) {
         setUser(null);
+        setUserRole('');
         setWorkshopId('');
+        setWorkshopInfo(null);
         setIsSuperAdmin(false);
         setAllWorkshops([]);
         setJobs([]);
+        setCustomers([]);
+        setVehicles([]);
         setAuthLoading(false);
         return;
       }
@@ -603,15 +607,21 @@ export default function TallerLivePrototype() {
       setUserRole(profile.role ?? '');
 
       if (profile.role === 'super_admin') {
+        // super_admin: cargar lista de talleres y elegir uno activo inicial
         setIsSuperAdmin(true);
         const { data: workshops } = await supabase.from('workshops').select('id, name');
-        if (workshops) setAllWorkshops(workshops);
-      }
-
-      if (profile.workshop_id) {
-        setWorkshopId(profile.workshop_id);
+        if (workshops && workshops.length > 0) {
+          setAllWorkshops(workshops);
+          // Taller activo inicial: el del propio perfil si existe, si no el primero de la lista
+          const initialId = profile.workshop_id || workshops[0].id;
+          setWorkshopId(initialId);
+        } else {
+          setAllWorkshops([]);
+          setWorkshopId(profile.workshop_id || '');
+        }
       } else {
-        setWorkshopId('');
+        // usuario normal: siempre su propio taller fijo, nunca cambia
+        setWorkshopId(profile.workshop_id || '');
       }
 
       setAuthLoading(false);
