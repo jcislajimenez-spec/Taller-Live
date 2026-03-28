@@ -465,6 +465,8 @@ export default function TallerLivePrototype() {
   // Auth & workshop dinámico
   const [user, setUser] = useState<any>(null);
   const [workshopId, setWorkshopId] = useState<string>('');
+  const [workshopInfo, setWorkshopInfo] = useState<{ name: string; city: string } | null>(null);
+  const [userRole, setUserRole] = useState<string>('');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [allWorkshops, setAllWorkshops] = useState<{ id: string; name: string }[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
@@ -483,7 +485,7 @@ export default function TallerLivePrototype() {
   const fetchJobsFromSupabase = React.useCallback(async (): Promise<any[]> => {
     if (!isSupabaseConnected || !workshopId) return [];
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('orders')
         .select(`
           *,
@@ -494,12 +496,18 @@ export default function TallerLivePrototype() {
         .eq('workshop_id', workshopId)
         .order('created_at', { ascending: false });
 
+      if (error) {
+        console.error('[fetchJobsFromSupabase] Error de Supabase:', error);
+        addLog(`[fetchJobs] ERROR: ${error.message} (code: ${error.code})`);
+        return [];
+      }
 
       if (!data || data.length === 0) return [];
 
       return data.map(mapOrderToJob);
-    } catch (e) {
-      console.error('Error fetching jobs from Supabase:', e);
+    } catch (e: any) {
+      console.error('[fetchJobsFromSupabase] Excepción inesperada:', e);
+      addLog(`[fetchJobs] EXCEPCIÓN: ${e?.message ?? e}`);
       return [];
     }
   }, [isSupabaseConnected, workshopId]);
@@ -583,6 +591,8 @@ export default function TallerLivePrototype() {
         return;
       }
 
+      setUserRole(profile.role ?? '');
+
       if (profile.role === 'super_admin') {
         setIsSuperAdmin(true);
         const { data: workshops } = await supabase.from('workshops').select('id, name');
@@ -623,14 +633,47 @@ export default function TallerLivePrototype() {
     });
   }, [workshopId, fetchJobsFromSupabase, isSupabaseConnected]);
 
+  // --- Cargar nombre y ciudad del taller desde BD ---
+  useEffect(() => {
+    if (!workshopId || !isSupabaseConnected) {
+      setWorkshopInfo(null);
+      return;
+    }
+    supabase
+      .from('workshops')
+      .select('name, city')
+      .eq('id', workshopId)
+      .single()
+      .then(({ data }) => {
+        if (data) setWorkshopInfo({ name: data.name ?? '', city: (data as any).city ?? '' });
+      });
+  }, [workshopId, isSupabaseConnected]);
+
   // --- Cargar Clientes y Vehículos ---
   useEffect(() => {
+    // Limpiar siempre al cambiar workshopId o tab para evitar estado engañoso
+    setCustomers([]);
+    setVehicles([]);
     if (activeTab === 'clientes' && isSupabaseConnected && workshopId) {
       const fetchCustomersAndVehicles = async () => {
-        const { data: customersData } = await supabase.from('customers').select('*').eq('workshop_id', workshopId).order('name');
-        const { data: vehiclesData } = await supabase.from('vehicles').select('*').eq('workshop_id', workshopId).order('plate');
-        if (customersData) setCustomers(customersData);
-        if (vehiclesData) setVehicles(vehiclesData);
+        const { data: customersData, error: errC } = await supabase.from('customers').select('*').eq('workshop_id', workshopId).order('name');
+        const { data: vehiclesData, error: errV } = await supabase.from('vehicles').select('*').eq('workshop_id', workshopId).order('plate');
+
+        if (errC) {
+          console.error('[clientes] Error al cargar customers:', errC);
+          addLog(`[clientes] ERROR customers: ${errC.message} (code: ${errC.code})`);
+          setCustomers([]);
+        } else {
+          setCustomers(customersData ?? []);
+        }
+
+        if (errV) {
+          console.error('[clientes] Error al cargar vehicles:', errV);
+          addLog(`[clientes] ERROR vehicles: ${errV.message} (code: ${errV.code})`);
+          setVehicles([]);
+        } else {
+          setVehicles(vehiclesData ?? []);
+        }
       };
       fetchCustomersAndVehicles();
     }
@@ -2043,8 +2086,8 @@ export default function TallerLivePrototype() {
               </select>
             ) : (
               <>
-                <p className="text-xl font-bold uppercase text-white leading-none">{WORKSHOP_NAME.toUpperCase()}</p>
-                {WORKSHOP_CITY && <p className="text-sm text-blue-400 mt-1">{WORKSHOP_CITY}</p>}
+                <p className="text-xl font-bold uppercase text-white leading-none">{(workshopInfo?.name || WORKSHOP_NAME).toUpperCase()}</p>
+                {(workshopInfo?.city || WORKSHOP_CITY) && <p className="text-sm text-blue-400 mt-1">{workshopInfo?.city || WORKSHOP_CITY}</p>}
               </>
             )}
           </div>
@@ -2086,8 +2129,8 @@ export default function TallerLivePrototype() {
             </select>
           ) : (
             <>
-              <p className="text-lg font-bold uppercase text-white leading-tight">{WORKSHOP_NAME.toUpperCase()}</p>
-              {WORKSHOP_CITY && <p className="text-xs text-blue-400 mt-1">{WORKSHOP_CITY}</p>}
+              <p className="text-lg font-bold uppercase text-white leading-tight">{(workshopInfo?.name || WORKSHOP_NAME).toUpperCase()}</p>
+              {(workshopInfo?.city || WORKSHOP_CITY) && <p className="text-xs text-blue-400 mt-1">{workshopInfo?.city || WORKSHOP_CITY}</p>}
             </>
           )}
         </div>
@@ -2328,12 +2371,35 @@ export default function TallerLivePrototype() {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-4"
           >
+            {/* Diagnóstico de sesión — validación multi-taller */}
+            <div className="bg-[#0a0f2e] rounded-[32px] p-6 border border-yellow-500/30 space-y-3">
+              <h3 className="text-xs font-black text-yellow-500 uppercase tracking-[0.2em]">Sesión activa</h3>
+              <div className="space-y-2 font-mono text-xs">
+                <div className="flex gap-2">
+                  <span className="text-slate-500 w-28 shrink-0">Email</span>
+                  <span className="text-white break-all">{user?.email ?? '—'}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-slate-500 w-28 shrink-0">Workshop ID</span>
+                  <span className="text-yellow-400 break-all">{workshopId || '—'}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-slate-500 w-28 shrink-0">Taller (BD)</span>
+                  <span className="text-emerald-400">{workshopInfo?.name || '—'}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-slate-500 w-28 shrink-0">Role</span>
+                  <span className="text-blue-400">{userRole || '—'}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Información del taller */}
             <div className="bg-[#131D3B] rounded-[32px] p-8 border border-white/10 space-y-4">
               <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Taller</h3>
               <div>
-                <p className="text-2xl font-black text-white tracking-tight">{WORKSHOP_NAME}</p>
-                {WORKSHOP_CITY && <p className="text-sm text-slate-400 font-bold mt-1">{WORKSHOP_CITY}</p>}
+                <p className="text-2xl font-black text-white tracking-tight">{workshopInfo?.name || WORKSHOP_NAME}</p>
+                {(workshopInfo?.city || WORKSHOP_CITY) && <p className="text-sm text-slate-400 font-bold mt-1">{workshopInfo?.city || WORKSHOP_CITY}</p>}
               </div>
             </div>
 
