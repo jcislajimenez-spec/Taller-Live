@@ -624,16 +624,16 @@ export default function TallerLivePrototype() {
 
   // --- Cargar Clientes y Vehículos ---
   useEffect(() => {
-    if (activeTab === 'clientes' && isSupabaseConnected) {
+    if (activeTab === 'clientes' && isSupabaseConnected && workshopId) {
       const fetchCustomersAndVehicles = async () => {
-        const { data: customersData } = await supabase.from('customers').select('*').order('name');
-        const { data: vehiclesData } = await supabase.from('vehicles').select('*').order('plate');
+        const { data: customersData } = await supabase.from('customers').select('*').eq('workshop_id', workshopId).order('name');
+        const { data: vehiclesData } = await supabase.from('vehicles').select('*').eq('workshop_id', workshopId).order('plate');
         if (customersData) setCustomers(customersData);
         if (vehiclesData) setVehicles(vehiclesData);
       };
       fetchCustomersAndVehicles();
     }
-  }, [activeTab, isSupabaseConnected]);
+  }, [activeTab, isSupabaseConnected, workshopId]);
 
   // --- Persistencia: YA NO usamos localStorage para jobs ---
   // Supabase es la única fuente de verdad.
@@ -705,16 +705,17 @@ export default function TallerLivePrototype() {
 
   // --- Sincronización en Tiempo Real con Supabase ---
   useEffect(() => {
-    if (!isSupabaseConnected) return;
+    if (!isSupabaseConnected || !workshopId) return;
 
     const channel = supabase
-      .channel('orders-realtime')
+      .channel(`orders-realtime-${workshopId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'orders'
+          table: 'orders',
+          filter: `workshop_id=eq.${workshopId}`
         },
         async (payload) => {
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
@@ -752,7 +753,7 @@ export default function TallerLivePrototype() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isSupabaseConnected, refreshSingleJob]);
+  }, [isSupabaseConnected, refreshSingleJob, workshopId]);
 
   // Cargar datos iniciales (LocalStorage + Supabase)
   useEffect(() => {
@@ -1420,6 +1421,7 @@ export default function TallerLivePrototype() {
         .from('vehicles')
         .select('*, customer:customers(id, name, phone)')
         .eq('plate', normalized)
+        .eq('workshop_id', workshopId)
         .maybeSingle();
       if (error) { console.warn('[handlePlateLookup] Error:', error.message); return; }
       if (data) {
@@ -1465,6 +1467,7 @@ export default function TallerLivePrototype() {
             .from('customers')
             .select('id')
             .eq('phone', formData.customerPhone)
+            .eq('workshop_id', workshopId)
             .maybeSingle();
           
           if (findCustError) console.warn("Error buscando cliente:", findCustError);
@@ -1476,9 +1479,10 @@ export default function TallerLivePrototype() {
             console.log("Creando nuevo cliente:", formData.customerName);
             const { data: customer, error: customerError } = await supabase
               .from('customers')
-              .insert([{ 
-                name: formData.customerName, 
-                phone: formData.customerPhone
+              .insert([{
+                name: formData.customerName,
+                phone: formData.customerPhone,
+                workshop_id: workshopId
               }])
               .select()
               .single();
@@ -1499,6 +1503,7 @@ export default function TallerLivePrototype() {
             .from('vehicles')
             .select('id')
             .eq('plate', plateUpper)
+            .eq('workshop_id', workshopId)
             .maybeSingle();
 
           if (findVehError) console.warn("Error buscando vehículo:", findVehError);
@@ -1510,10 +1515,11 @@ export default function TallerLivePrototype() {
             console.log("Creando nuevo vehículo:", plateUpper);
             const { data: vehicle, error: vehicleError } = await supabase
               .from('vehicles')
-              .insert([{ 
-                plate: plateUpper, 
-                model: formData.model, 
-                customer_id: customerId 
+              .insert([{
+                plate: plateUpper,
+                model: formData.model,
+                customer_id: customerId,
+                workshop_id: workshopId
               }])
               .select()
               .single();
