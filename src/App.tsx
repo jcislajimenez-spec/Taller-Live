@@ -617,8 +617,9 @@ export default function TallerLivePrototype() {
   // --- Recargar jobs del taller cuando workshopId cambie ---
   useEffect(() => {
     if (!isSupabaseConnected || !workshopId) return;
+    setJobs([]);
     fetchJobsFromSupabase().then(fresh => {
-      if (fresh.length > 0) setJobs(fresh);
+      setJobs(fresh);
     });
   }, [workshopId, fetchJobsFromSupabase, isSupabaseConnected]);
 
@@ -2054,7 +2055,7 @@ export default function TallerLivePrototype() {
               onClick={async () => {
                 setIsLoading(true);
                 const fresh = await fetchJobsFromSupabase();
-                if (fresh.length > 0) setJobs(fresh);
+                setJobs(fresh);
                 setTimeout(() => setIsLoading(false), 500);
               }}
               className={cn(
