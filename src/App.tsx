@@ -273,6 +273,60 @@ const mapOrderToJob = (order: any): any => ({
   audioNotes: order.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
 });
 
+// --- LoginScreen ---
+function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) setError(authError.message);
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#050A1F] flex items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-black tracking-tighter uppercase italic text-blue-400">TallerLive</h1>
+          <p className="text-slate-400 text-sm font-bold mt-1">Accede a tu taller</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            required
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 px-5 text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-500"
+          />
+          <input
+            type="password"
+            required
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 px-5 text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-500"
+          />
+          {error && <p className="text-red-400 text-sm font-bold text-center">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-sm tracking-widest transition-all disabled:opacity-50"
+          >
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function TallerLivePrototype() {
   const path = window.location.pathname;
 
@@ -302,7 +356,7 @@ export default function TallerLivePrototype() {
   const [diagnosisText, setDiagnosisText] = useState<string>('');
   const [viewMode, setViewMode] = useState<'taller' | 'client'>(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('orderId') ? 'client' : 'taller';
+    return (params.get('orderId') || params.get('t')) ? 'client' : 'taller';
   });
   const [clientJob, setClientJob] = useState<any>(null);
   const [clientError, setClientError] = useState<string | null>(null);
@@ -319,7 +373,7 @@ export default function TallerLivePrototype() {
   const [deleteVehicleId, setDeleteVehicleId] = useState<string | null>(null);
   const [isClientLoading, setIsClientLoading] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return !!params.get('orderId');
+    return !!(params.get('orderId') || params.get('t'));
   });
   const [expandedDiagnosis, setExpandedDiagnosis] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<{id: string, message: string, type: 'success' | 'error' | 'info'}[]>([]);
@@ -348,9 +402,10 @@ export default function TallerLivePrototype() {
 
   // Auth & workshop dinámico
   const [user, setUser] = useState<any>(null);
-  const [workshopId, setWorkshopId] = useState<string>(CURRENT_WORKSHOP_ID);
+  const [workshopId, setWorkshopId] = useState<string>('');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [allWorkshops, setAllWorkshops] = useState<{ id: string; name: string }[]>([]);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Detección honesta de Supabase
   const isSupabaseConnected = React.useMemo(() => {
@@ -436,10 +491,22 @@ export default function TallerLivePrototype() {
 
   // --- Auth: detectar usuario y asignar workshopId desde profiles ---
   useEffect(() => {
-    if (!isSupabaseConnected) return;
+    if (!isSupabaseConnected) {
+      setAuthLoading(false);
+      return;
+    }
 
     const loadUserAndWorkshop = async (authUser: any) => {
-      if (!authUser) return;
+      if (!authUser) {
+        setUser(null);
+        setWorkshopId('');
+        setIsSuperAdmin(false);
+        setAllWorkshops([]);
+        setJobs([]);
+        setAuthLoading(false);
+        return;
+      }
+
       setUser(authUser);
 
       const { data: profile } = await supabase
@@ -448,9 +515,12 @@ export default function TallerLivePrototype() {
         .eq('id', authUser.id)
         .single();
 
-      if (!profile) return;
+      if (!profile) {
+        setAuthLoading(false);
+        return;
+      }
 
-      if (profile.role === 'superadmin') {
+      if (profile.role === 'super_admin') {
         setIsSuperAdmin(true);
         const { data: workshops } = await supabase.from('workshops').select('id, name');
         if (workshops) setAllWorkshops(workshops);
@@ -458,12 +528,12 @@ export default function TallerLivePrototype() {
 
       if (profile.workshop_id) {
         setWorkshopId(profile.workshop_id);
+      } else {
+        setWorkshopId('');
       }
-    };
 
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
-      loadUserAndWorkshop(authUser);
-    });
+      setAuthLoading(false);
+    };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       loadUserAndWorkshop(session?.user ?? null);
@@ -1776,6 +1846,19 @@ export default function TallerLivePrototype() {
     );
   }
 
+  // --- Auth gating (solo para vista taller) ---
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#050A1F] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user && isSupabaseConnected) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="industrial-bg min-h-screen text-slate-100 font-sans pb-20">
       {/* Notificaciones */}
@@ -2207,6 +2290,17 @@ export default function TallerLivePrototype() {
               >
                 Reiniciar Aplicación
               </button>
+              {user && (
+                <button
+                  onClick={async () => {
+                    localStorage.removeItem('tallerlive_jobs');
+                    await supabase.auth.signOut();
+                  }}
+                  className="w-full py-4 bg-red-900/30 hover:bg-red-900/50 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border border-red-500/20 text-red-400 mt-2"
+                >
+                  Cerrar Sesión
+                </button>
+              )}
             </div>
           </motion.div>
         )}
