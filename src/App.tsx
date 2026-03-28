@@ -580,13 +580,22 @@ export default function TallerLivePrototype() {
 
       setUser(authUser);
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('workshop_id, role')
         .eq('id', authUser.id)
         .single();
 
+      if (profileError) {
+        console.error('[profiles] Error al leer profiles para uid', authUser.id, profileError);
+        addLog(`[profiles] ERROR: ${profileError.message} (code: ${profileError.code}) uid=${authUser.id}`);
+        setAuthLoading(false);
+        return;
+      }
+
       if (!profile) {
+        console.warn('[profiles] No se encontró fila en profiles para uid:', authUser.id);
+        addLog(`[profiles] SIN FILA: no existe profiles row para uid=${authUser.id}`);
         setAuthLoading(false);
         return;
       }
@@ -644,8 +653,18 @@ export default function TallerLivePrototype() {
       .select('name, city')
       .eq('id', workshopId)
       .single()
-      .then(({ data }) => {
-        if (data) setWorkshopInfo({ name: data.name ?? '', city: (data as any).city ?? '' });
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[workshops] Error al leer workshops para id', workshopId, error);
+          addLog(`[workshops] ERROR: ${error.message} (code: ${error.code}) workshopId=${workshopId}`);
+          return;
+        }
+        if (!data) {
+          console.warn('[workshops] No se encontró workshop con id:', workshopId);
+          addLog(`[workshops] SIN FILA: no existe workshops row para workshopId=${workshopId}`);
+          return;
+        }
+        setWorkshopInfo({ name: data.name ?? '', city: (data as any).city ?? '' });
       });
   }, [workshopId, isSupabaseConnected]);
 
@@ -2378,6 +2397,10 @@ export default function TallerLivePrototype() {
                 <div className="flex gap-2">
                   <span className="text-slate-500 w-28 shrink-0">Email</span>
                   <span className="text-white break-all">{user?.email ?? '—'}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-slate-500 w-28 shrink-0">User ID</span>
+                  <span className="text-slate-300 break-all">{user?.id ?? '—'}</span>
                 </div>
                 <div className="flex gap-2">
                   <span className="text-slate-500 w-28 shrink-0">Workshop ID</span>
