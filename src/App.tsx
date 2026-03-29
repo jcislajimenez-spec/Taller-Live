@@ -1681,73 +1681,40 @@ export default function TallerLivePrototype() {
 
   const handleApproveBudget = async () => {
     if (!clientJob || isApproved) return;
-    
-    // Bloqueo inmediato de UI
-    setIsApproved(true);
-    const updatedStatus = 'repairing';
-    
-    // 1. Verificar estado real en Supabase antes de proceder (Doble verificación)
-    if (isSupabaseConnected) {
-      try {
-        const { data: currentOrder } = await supabase
-          .from('orders')
-          .select('status, is_accepted')
-          .eq('id', clientJob.id)
-          .single();
-        
-        if (currentOrder && (currentOrder.status === 'repairing' || currentOrder.is_accepted === true)) {
-          console.log("Ya estaba aprobado en el servidor");
-          return; // Ya está aprobado, no hacemos nada más
-        }
-      } catch (e) {
-        console.error("Error en pre-verificación");
-      }
+    if (!clientJob.public_token) return;
+
+    // Sin Supabase: flujo demo/local sin garantías de servidor
+    if (!isSupabaseConnected) {
+      setIsApproved(true);
+      setClientJob((prev: any) => ({ ...prev, status: 'repairing', is_accepted: true }));
+      return;
     }
 
-    // 2. Actualizar estados locales de React
-    const updatedJob = { ...clientJob, status: updatedStatus };
-    setClientJob(updatedJob);
-    
-    setJobs(prevJobs => {
-      const exists = prevJobs.find(j => String(j.id) === String(clientJob.id));
-      let newJobs;
-      if (exists) {
-        newJobs = prevJobs.map(job => 
-          String(job.id) === String(clientJob.id) ? { ...job, status: updatedStatus } : job
-        );
-      } else {
-        newJobs = [updatedJob, ...prevJobs];
-      }
-      localStorage.setItem('tallerlive_jobs', JSON.stringify(newJobs)); // cross-tab sync
-      return newJobs;
-    });
+    // Con Supabase: operación atómica via RPC
+    // No hay optimistic update — esperamos confirmación de BD antes de tocar UI
+    try {
+      const { data, error } = await supabase.rpc('approve_order_by_token', {
+        p_token: clientJob.public_token,
+      });
 
-    // 3. Notificar a otras pestañas
-    window.dispatchEvent(new Event('storage'));
-
-    // 4. Actualizar en Supabase de forma atómica
-    if (isSupabaseConnected && !String(clientJob.id).startsWith('temp-')) {
-      try {
-        const { error } = await supabase
-          .from('orders')
-          .update({ 
-            status: updatedStatus
-          })
-          .eq('id', clientJob.id);
-          
-        if (error) {
-          console.error('Error de Supabase al aprobar presupuesto:', error);
-          setIsApproved(false);
-          setClientJob(clientJob);
-          notify('Error al enviar la aprobación. Inténtalo de nuevo.', 'error');
-          return;
-        }
-      } catch (e) {
-        console.error('Error de red/conexión en Supabase:', e);
-        setIsApproved(false);
-        setClientJob(clientJob);
-        notify('Error de conexión. Inténtalo de nuevo.', 'error');
+      if (error) {
+        console.error('[handleApproveBudget] RPC error:', error);
+        notify('Error al enviar la aprobación. Inténtalo de nuevo.', 'error');
+        return;
       }
+
+      if (!data || (Array.isArray(data) && data.length === 0)) {
+        // Token ya consumido o pedido fuera de estado waiting_customer
+        notify('Este enlace ya fue usado o ya no está disponible.', 'info');
+        return;
+      }
+
+      // BD confirmó la aprobación
+      setIsApproved(true);
+      setClientJob((prev: any) => ({ ...prev, status: 'repairing', is_accepted: true }));
+    } catch (e: any) {
+      console.error('[handleApproveBudget] Excepción:', e);
+      notify('Error de conexión. Inténtalo de nuevo.', 'error');
     }
   };
 
