@@ -35,6 +35,31 @@ import { AudioRecorder } from './services/audioService';
 type JobStatus = 'waiting' | 'diagnosed' | 'waiting_customer' | 'repairing' | 'ready' | 'delivered' | 'awaiting_diagnosis' | 'diagnosing';
 type Urgency = 'low' | 'medium' | 'high';
 
+type Job = {
+  id: string;
+  vehicle_id?: string;
+  plate: string;
+  model: string;
+  customer: string;
+  customerPhone: string;
+  status: JobStatus;
+  urgency?: Urgency;
+  budget: string;
+  budgetShared: boolean;
+  aiDiagnosis: string;
+  description: string;
+  public_token: string | null;
+  is_accepted: boolean;
+  quote_version: number;
+  approved_quote_version: number | null;
+  approved_at: string | null;
+  photos: string[];
+  audios: string[];
+  audioNotes?: string[];
+  entryTime: string;
+  created_at?: string;
+};
+
 // --- Constantes de configuración ---
 const CURRENT_WORKSHOP_ID = import.meta.env.VITE_WORKSHOP_ID || '';
 const WORKSHOP_NAME = import.meta.env.VITE_WORKSHOP_NAME || 'Taller';
@@ -114,14 +139,14 @@ const WORKFLOW_STEPS = [
   { key: 'shared', label: 'Envío',     Icon: MessageSquare  },
 ] as const;
 
-const getStepsDone = (job: any): boolean[] => [
+const getStepsDone = (job: Job): boolean[] => [
   (job.photos?.length ?? 0) > 0,
   (job.audios?.length ?? 0) > 0,
   parseFloat(job.budget ?? '0') > 0,
   job.budgetShared === true,
 ];
 
-const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: number) => void }) => {
+const WorkflowTracker = ({ job, onStepClick }: { job: Job; onStepClick?: (step: number) => void }) => {
   const done = getStepsDone(job);
   const completedCount = done.filter(Boolean).length;
   const firstPending = done.findIndex(d => !d);
@@ -181,7 +206,7 @@ const WorkflowTracker = ({ job, onStepClick }: { job: any; onStepClick?: (step: 
 };
 
 // Siguiente acción disponible según el estado real del job
-const getNextAction = (job: any) => {
+const getNextAction = (job: Job) => {
   if (!(job.photos?.length > 0))            return { label: 'Capturar fotos',            Icon: Camera,        variant: 'blue',  action: 'photo'  } as const;
   if (!(job.audios?.length > 0))            return { label: 'Registrar grabación',       Icon: Mic,           variant: 'blue',  action: 'audio'  } as const;
   if (!(parseFloat(job.budget ?? '0') > 0)) return { label: 'Crear informe',             Icon: FileText,      variant: 'blue',  action: 'budget' } as const;
@@ -266,13 +291,13 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<{ blo
 // --- Transformación única: Supabase order row → job de React ---
 // Única fuente de verdad para la estructura de un job en el frontend.
 // Usada por fetchJobsFromSupabase y refreshSingleJob.
-const mapOrderToJob = (order: any): any => ({
+const mapOrderToJob = (order: any): Job => ({
   id: order.id,
   vehicle_id: order.vehicle_id,
-  plate: order.vehicle?.plate,
-  model: order.vehicle?.model,
-  customer: order.customer?.name,
-  customerPhone: order.customer?.phone,
+  plate: order.vehicle?.plate ?? '',
+  model: order.vehicle?.model ?? '',
+  customer: order.customer?.name ?? '',
+  customerPhone: order.customer?.phone ?? '',
   status: order.status,
   budget: order.budget?.toString() || '0',
   aiDiagnosis: order.description,
@@ -287,7 +312,8 @@ const mapOrderToJob = (order: any): any => ({
   approved_at: order.approved_at ?? null,
   photos: order.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
   audios: order.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
-  audioNotes: order.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
+  audioNotes: order.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || [],
+  created_at: order.created_at,
 });
 
 // --- ResetPasswordScreen ---
@@ -421,7 +447,7 @@ export default function TallerLivePrototype() {
       );
     }
   }
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filter, setFilter] = useState<string>('');
@@ -437,7 +463,7 @@ export default function TallerLivePrototype() {
     const params = new URLSearchParams(window.location.search);
     return (params.get('orderId') || params.get('t')) ? 'client' : 'taller';
   });
-  const [clientJob, setClientJob] = useState<any>(null);
+  const [clientJob, setClientJob] = useState<Job | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const [publicUrl, setPublicUrl] = useState<string>(() => {
     return localStorage.getItem('tallerlive_public_url') || '';
@@ -474,7 +500,7 @@ export default function TallerLivePrototype() {
   };
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingJob, setEditingJob] = useState<any>(null);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -910,17 +936,25 @@ export default function TallerLivePrototype() {
         try {
           // Decodificación robusta para caracteres especiales (acentos, etc)
           const decodedData = JSON.parse(decodeURIComponent(escape(atob(dataParam))));
-          let job = {
+          let job: Job = {
             id: decodedData.id,
-            plate: decodedData.p,
-            model: decodedData.m,
-            customer: decodedData.c,
-            budget: decodedData.b,
-            description: decodedData.d,
-            status: decodedData.s,
+            plate: decodedData.p ?? '',
+            model: decodedData.m ?? '',
+            customer: decodedData.c ?? '',
+            customerPhone: '',
+            budget: decodedData.b ?? '0',
+            description: decodedData.d ?? '',
+            status: (decodedData.s as JobStatus) ?? 'waiting',
+            aiDiagnosis: decodedData.ai || '',
+            budgetShared: false,
+            public_token: null,
+            is_accepted: false,
+            quote_version: 1,
+            approved_quote_version: null,
+            approved_at: null,
             entryTime: 'Hoy',
             photos: decodedData.ph || [],
-            aiDiagnosis: decodedData.ai || ''
+            audios: [],
           };
 
           // --- MEJORA: Priorizar datos locales si ya existen en este navegador ---
@@ -952,7 +986,7 @@ export default function TallerLivePrototype() {
                   photos: data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || job.photos,
                   audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
                   aiDiagnosis: data.description || job.aiDiagnosis,
-                  budget: data.budget || job.budget
+                  budget: data.budget?.toString() || job.budget
                 };
                 setClientJob(fullJob);
                 setIsApproved(data.status === 'repairing' || data.status === 'ready' || data.is_accepted === true);
@@ -992,20 +1026,25 @@ export default function TallerLivePrototype() {
               .single();
 
             if (data) {
-              const fetchedJob = {
+              const fetchedJob: Job = {
                 id: data.id,
-                plate: data.vehicle?.plate,
-                model: data.vehicle?.model,
-                customer: data.customer?.name,
-                customerPhone: data.customer?.phone,
+                plate: data.vehicle?.plate ?? '',
+                model: data.vehicle?.model ?? '',
+                customer: data.customer?.name ?? '',
+                customerPhone: data.customer?.phone ?? '',
                 status: data.status,
                 budget: data.budget?.toString() || '0',
                 aiDiagnosis: data.description,
                 budgetShared: data.status === 'waiting_customer' || data.status === 'repairing' || data.status === 'ready',
                 description: data.description,
+                public_token: data.public_token ?? null,
+                is_accepted: data.is_accepted ?? false,
+                quote_version: data.quote_version ?? 1,
+                approved_quote_version: data.approved_quote_version ?? null,
+                approved_at: data.approved_at ?? null,
                 entryTime: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 photos: data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
-                audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || []
+                audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
               };
               
               setClientJob(fetchedJob);
@@ -1651,7 +1690,7 @@ export default function TallerLivePrototype() {
         console.log("Orden creada con éxito:", order.id);
 
         // Actualizar UI Local
-        const newJob = {
+        const newJob: Job = {
           id: order.id,
           plate: formData.plate.toUpperCase(),
           model: formData.model,
@@ -1659,11 +1698,18 @@ export default function TallerLivePrototype() {
           customerPhone: formData.customerPhone,
           status: 'waiting',
           urgency: formData.urgency,
-          entryTime: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          budget: '0',
+          budgetShared: false,
+          aiDiagnosis: formData.description,
           description: formData.description,
-          public_token: order.public_token,
+          public_token: order.public_token ?? null,
+          is_accepted: false,
+          quote_version: 1,
+          approved_quote_version: null,
+          approved_at: null,
+          entryTime: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           photos: [],
-          audios: []
+          audios: [],
         };
 
         setJobs(prev => [newJob, ...prev]);
