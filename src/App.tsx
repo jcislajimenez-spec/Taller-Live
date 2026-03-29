@@ -186,7 +186,20 @@ const getNextAction = (job: any) => {
   if (!(job.audios?.length > 0))            return { label: 'Registrar grabación',       Icon: Mic,           variant: 'blue',  action: 'audio'  } as const;
   if (!(parseFloat(job.budget ?? '0') > 0)) return { label: 'Crear informe',             Icon: FileText,      variant: 'blue',  action: 'budget' } as const;
   if (!job.budgetShared)                    return { label: 'Enviar informe presupuesto', Icon: MessageSquare, variant: 'blue',  action: 'share'  } as const;
-  if (job.status === 'repairing')          return { label: 'Finalizar reparación',   Icon: CheckCircle2,   variant: 'green', action: 'finish' } as const;
+  // Revisión pendiente = precio cambió desde el último envío (quote_version > 1 y mayor que la última aprobada)
+  const hasPendingRevision = (job.quote_version ?? 1) > 1 && (job.quote_version ?? 1) > (job.approved_quote_version ?? 0);
+  if (job.status === 'repairing') {
+    if (hasPendingRevision) return { label: 'Enviar presupuesto revisado', Icon: MessageSquare, variant: 'blue',  action: 'share'  } as const;
+    return                          { label: 'Finalizar reparación',        Icon: CheckCircle2,  variant: 'green', action: 'finish' } as const;
+  }
+  if (job.status === 'waiting_customer') {
+    const label = hasPendingRevision ? 'Enviar presupuesto revisado' : 'Reenviar informe';
+    return { label, Icon: MessageSquare, variant: 'blue' as const, action: 'share' as const };
+  }
+  if (job.status === 'ready') {
+    // Reenvío simple — precio bloqueado, sin revisión posible
+    return { label: 'Reenviar informe', Icon: MessageSquare, variant: 'blue' as const, action: 'share' as const };
+  }
   return null;
 };
 
@@ -431,8 +444,6 @@ export default function TallerLivePrototype() {
   });
   const [isApproved, setIsApproved] = useState(false);
   const [justApproved, setJustApproved] = useState(false); // true solo cuando el cliente aprueba en esta sesión
-  const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
-  const [revisionJob, setRevisionJob] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'taller' | 'historial' | 'clientes' | 'ajustes'>('taller');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deliverConfirmId, setDeliverConfirmId] = useState<string | null>(null);
@@ -1287,10 +1298,13 @@ export default function TallerLivePrototype() {
     const diagnosisToSave = diagnosisText;
     const currentJob = jobs.find(j => String(j.id) === String(jobId));
     const shouldAdvance = ['waiting', 'awaiting_diagnosis', 'diagnosing'].includes(currentJob?.status || '');
+    // Si el precio cambia en un pedido ya enviado (y no está en 'ready'), incrementar quote_version
+    const priceChanged = currentJob?.budgetShared && budgetToSave !== currentJob?.budget && currentJob?.status !== 'ready';
+    const newQuoteVersion = priceChanged ? (currentJob?.quote_version ?? 1) + 1 : undefined;
 
     setJobs(prevJobs => prevJobs.map(job =>
       String(job.id) === String(jobId)
-        ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosing' } : {}) }
+        ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosing' } : {}), ...(newQuoteVersion ? { quote_version: newQuoteVersion } : {}) }
         : job
     ));
 
@@ -1303,7 +1317,8 @@ export default function TallerLivePrototype() {
             total_estimated: Number(budgetToSave),
             description: diagnosisToSave,
             workshop_id: workshopId,
-            ...(shouldAdvance ? { status: 'diagnosing' } : {})
+            ...(shouldAdvance ? { status: 'diagnosing' } : {}),
+            ...(newQuoteVersion ? { quote_version: newQuoteVersion } : {})
           })
           .eq('id', jobId);
         if (error) throw error;
@@ -1323,24 +1338,32 @@ export default function TallerLivePrototype() {
     setDiagnosisText('');
   };
 
-  const handleWhatsAppShare = (job: any, skipStateUpdate = false) => {
+  const handleWhatsAppShare = (job: any) => {
     if (!job.budget || parseFloat(job.budget) < 0) {
       alert("Debes ingresar un presupuesto antes de enviarlo por WhatsApp.");
       return;
     }
 
-    // Solo actualizar a waiting_customer si el pedido no ha pasado ya por la aprobación
-    const isPastApproval = ['repairing', 'ready', 'delivered'].includes(job.status);
-    if (!skipStateUpdate && !isPastApproval) {
+    const hasPendingRevision = (job.quote_version ?? 1) > 1 && (job.quote_version ?? 1) > (job.approved_quote_version ?? 0);
+
+    if (!job.budgetShared) {
+      // Primer envío: poner en waiting_customer
       setJobs(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, budgetShared: true, status: 'waiting_customer' } : j));
       if (isSupabaseConnected) {
         supabase.from('orders').update({ status: 'waiting_customer' }).eq('id', job.id).then();
       }
+    } else if (hasPendingRevision && job.status === 'repairing') {
+      // Revisión con precio cambiado desde repairing: volver a waiting_customer
+      setJobs(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, status: 'waiting_customer', is_accepted: false } : j));
+      if (isSupabaseConnected) {
+        supabase.from('orders').update({ status: 'waiting_customer', is_accepted: false }).eq('id', job.id).then();
+      }
     }
+    // Casos sin cambio de estado: resend sin revisión, waiting_customer con revisión, ready
 
     // Usamos la URL pública configurada o la actual como fallback
     const baseUrl = publicUrl || window.location.origin;
-    
+
     let magicLink;
     if (job.public_token) {
       magicLink = `${baseUrl}?t=${job.public_token}`;
@@ -1358,8 +1381,10 @@ export default function TallerLivePrototype() {
       const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(jobData))));
       magicLink = `${baseUrl}?d=${encodedData}`;
     }
-    
+
+    const revisionPrefix = hasPendingRevision ? `⚠️ *PRESUPUESTO REVISADO (v${job.quote_version ?? 1})*\n\n` : '';
     const message = `*📋 INFORME DE TALLER - ${WORKSHOP_NAME.toUpperCase()}*\n\n` +
+                    revisionPrefix +
                     `Hola *${job.customer}*,\n\n` +
                     `Hemos revisado su vehículo *${job.model}* (${job.plate}).\n\n` +
                     `💰 *PRESUPUESTO: ${job.budget || '---'}€*\n\n` +
@@ -1378,37 +1403,6 @@ export default function TallerLivePrototype() {
     }
 
     window.location.href = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
-  };
-
-  const handleSendRevision = async (job: any) => {
-    const newVersion = (job.quote_version ?? 1) + 1;
-    const updatedJob = {
-      ...job,
-      quote_version: newVersion,
-      // approved_quote_version conserva el último valor aprobado
-      is_accepted: false,
-      status: 'waiting_customer' as JobStatus,
-    };
-
-    if (isSupabaseConnected) {
-      const { error } = await supabase.from('orders').update({
-        quote_version: newVersion,
-        // approved_quote_version omitido — BD conserva el valor existente
-        is_accepted: false,
-        status: 'waiting_customer',
-      }).eq('id', job.id);
-
-      if (error) {
-        notify('Error al crear revisión. Inténtalo de nuevo.', 'error');
-        return;
-      }
-    }
-
-    setJobs(prev => prev.map(j => String(j.id) === String(job.id) ? updatedJob : j));
-    setIsRevisionModalOpen(false);
-    setRevisionJob(null);
-    // skipStateUpdate=true porque ya pusimos status='waiting_customer' arriba
-    handleWhatsAppShare(updatedJob, true);
   };
 
   const handleReadyNotification = (job: any) => {
@@ -1881,7 +1875,14 @@ export default function TallerLivePrototype() {
 
           {/* Presupuesto */}
           <div className="bg-white rounded-[32px] p-6 shadow-xl border border-slate-100">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Presupuesto Estimado</span>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Presupuesto Estimado</span>
+              {(clientJob.quote_version ?? 1) > 1 && (
+                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                  Revisión {clientJob.quote_version}
+                </span>
+              )}
+            </div>
             <div className="flex items-center justify-between">
               <span className="text-4xl font-black text-blue-600">{clientJob.budget || '0'}€</span>
               {clientJob.photos?.length > 0 && (
@@ -2430,25 +2431,6 @@ export default function TallerLivePrototype() {
                     );
                   })()}
 
-                  {/* Acciones secundarias: reenvío y revisión de presupuesto */}
-                  {job.budgetShared && (
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        onClick={() => handleWhatsAppShare(job, true)}
-                        className="flex-1 py-2 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 bg-slate-700/50 text-slate-300 hover:bg-slate-600/60 transition-all border border-slate-600/40"
-                      >
-                        <RefreshCw size={13} />
-                        Reenviar informe
-                      </button>
-                      <button
-                        onClick={() => { setRevisionJob(job); setIsRevisionModalOpen(true); }}
-                        className="flex-1 py-2 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 bg-amber-900/40 text-amber-400 hover:bg-amber-900/60 transition-all border border-amber-700/40"
-                      >
-                        <Edit2 size={13} />
-                        Presupuesto revisado
-                      </button>
-                    </div>
-                  )}
                 </motion.div>
               ))}
               </div>
@@ -3226,60 +3208,6 @@ export default function TallerLivePrototype() {
         )}
       </AnimatePresence>
 
-      {/* MODAL: CONFIRMACIÓN REVISIÓN PRESUPUESTO */}
-      <AnimatePresence>
-        {isRevisionModalOpen && revisionJob && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => { setIsRevisionModalOpen(false); setRevisionJob(null); }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              className="relative w-full max-w-md bg-[#0d1117] border border-amber-700/40 rounded-t-[40px] sm:rounded-[40px] shadow-2xl p-8 space-y-6"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-black text-white uppercase tracking-tight">Presupuesto revisado</h2>
-                  <p className="text-slate-400 text-sm mt-1">{revisionJob.model} · {revisionJob.plate}</p>
-                </div>
-                <button onClick={() => { setIsRevisionModalOpen(false); setRevisionJob(null); }} className="p-2 bg-slate-800 rounded-full text-slate-400"><X size={18} /></button>
-              </div>
-
-              <div className="bg-amber-900/20 border border-amber-700/40 rounded-2xl p-4 space-y-2 text-sm">
-                <p className="font-bold text-amber-400 uppercase text-xs tracking-widest">¿Qué ocurrirá?</p>
-                <ul className="text-slate-300 space-y-1.5">
-                  <li className="flex gap-2"><span className="text-amber-500">→</span>El presupuesto pasa a la versión {(revisionJob.quote_version ?? 1) + 1}</li>
-                  <li className="flex gap-2"><span className="text-amber-500">→</span>La aprobación anterior queda anulada</li>
-                  <li className="flex gap-2"><span className="text-amber-500">→</span>El cliente recibirá el nuevo enlace por WhatsApp</li>
-                  <li className="flex gap-2"><span className="text-amber-500">→</span>El mismo enlace sigue siendo válido</li>
-                </ul>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => { setIsRevisionModalOpen(false); setRevisionJob(null); }}
-                  className="flex-1 py-3 rounded-2xl font-black uppercase text-xs tracking-widest bg-slate-800 text-slate-400 hover:bg-slate-700 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => handleSendRevision(revisionJob)}
-                  className="flex-1 py-3 rounded-2xl font-black uppercase text-xs tracking-widest bg-amber-500 text-white hover:bg-amber-400 transition-all shadow-lg shadow-amber-900/30"
-                >
-                  Enviar revisión
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* MODAL: PRESUPUESTO */}
       <AnimatePresence>
         {isBudgetModalOpen && (() => {
@@ -3354,11 +3282,18 @@ export default function TallerLivePrototype() {
                       <input
                         type="number"
                         placeholder="Ej: 450"
-                        className="w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-5 px-6 text-3xl font-black focus:border-blue-500 focus:outline-none transition-all"
+                        className={cn(
+                          "w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-5 px-6 text-3xl font-black focus:border-blue-500 focus:outline-none transition-all",
+                          activeJob?.status === 'ready' && "opacity-50 cursor-not-allowed"
+                        )}
                         value={budgetAmount}
-                        onChange={(e) => setBudgetAmount(e.target.value)}
+                        onChange={(e) => { if (activeJob?.status !== 'ready') setBudgetAmount(e.target.value); }}
+                        disabled={activeJob?.status === 'ready'}
                         autoFocus
                       />
+                      {activeJob?.status === 'ready' && (
+                        <p className="text-xs text-amber-400 font-bold ml-1">Precio bloqueado — vehículo listo para entregar</p>
+                      )}
                     </div>
 
                     <button
