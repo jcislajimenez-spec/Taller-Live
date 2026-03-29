@@ -730,7 +730,7 @@ export default function TallerLivePrototype() {
   // Supabase es la única fuente de verdad.
   // Solo guardamos para offline fallback básico (sin media).
   useEffect(() => {
-    if (jobs.length > 0 && jobs.some(j => !String(j.id).startsWith('temp-'))) {
+    if (jobs.length > 0) {
       // Solo guardar metadata básica, NUNCA base64
       const lite = jobs.map(j => ({
         id: j.id, plate: j.plate, model: j.model, customer: j.customer,
@@ -782,17 +782,6 @@ export default function TallerLivePrototype() {
       clearInterval(interval);
     };
   }, [viewMode, clientJob, isSupabaseConnected]);
-
-  // --- Detección de jobs no sincronizados (temp-) ---
-  const hasWarnedTempRef = React.useRef(false);
-  useEffect(() => {
-    if (!isSupabaseConnected || jobs.length === 0 || hasWarnedTempRef.current) return;
-    const tempJobs = jobs.filter(j => String(j.id).startsWith('temp-'));
-    if (tempJobs.length > 0) {
-      hasWarnedTempRef.current = true;
-      notify('Hay registros no sincronizados. Revísalos o elimínalos.', 'info');
-    }
-  }, [jobs, isSupabaseConnected]);
 
   // --- Sincronización en Tiempo Real con Supabase ---
   useEffect(() => {
@@ -1059,10 +1048,6 @@ export default function TallerLivePrototype() {
     const jobId = activeJobId;
     console.log("Uploading photo for job:", jobId);
 
-    if (String(jobId).startsWith('temp-')) {
-      notify("No se pueden subir fotos a un pedido que no se ha sincronizado con Supabase.", 'error');
-      return;
-    }
 
     addLog(`Iniciando subida de foto para job: ${jobId}`);
 
@@ -1166,12 +1151,7 @@ export default function TallerLivePrototype() {
       const recorder = audioRecorderRef.current;
       const result = await recorder.stop();
 
-      if (String(jobId).startsWith('temp-')) {
-        notify("No se puede guardar audio en un pedido local.", 'error');
-        setActiveJobId(null);
-        recordingJobIdRef.current = null;
-        return;
-      }
+
 
       addLog(`Grabación: ${result.durationSeconds}s, ${(result.blob.size / 1024).toFixed(0)}KB`);
 
@@ -1434,11 +1414,7 @@ export default function TallerLivePrototype() {
       const interval = setInterval(async () => {
         const fresh = await fetchJobsFromSupabase();
         if (fresh.length > 0) {
-          setJobs(prev => {
-            // Mantener solo jobs temporales (temp-) que aún no están en Supabase
-            const tempJobs = prev.filter(j => String(j.id).startsWith('temp-'));
-            return [...fresh, ...tempJobs];
-          });
+          setJobs(fresh);
         }
       }, 10000);
 
@@ -1701,24 +1677,7 @@ export default function TallerLivePrototype() {
     } catch (error: any) {
       console.error('Error crítico creando entrada:', error);
       addLog(`Error creación pedido: ${error.message}`);
-      // Fallback local con ID temporal
-      const localJob = {
-        id: 'temp-' + Date.now(),
-        plate: formData.plate.toUpperCase(),
-        model: formData.model,
-        customer: formData.customerName,
-        customerPhone: formData.customerPhone,
-        status: 'waiting',
-        urgency: formData.urgency,
-        entryTime: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        description: formData.description,
-        photos: [],
-        audios: []
-      };
-      setJobs(prev => [localJob, ...prev]);
-      setIsModalOpen(false);
-      setFormData({ plate: '', model: '', customerName: '', customerPhone: '', description: '', urgency: 'medium' });
-      notify("Error al guardar en la base de datos. El pedido se ha guardado localmente.", 'error');
+      notify("No se pudo crear el pedido. Comprueba la conexión e inténtalo de nuevo.", 'error');
     } finally {
       setIsLoading(false);
     }
@@ -2124,12 +2083,6 @@ export default function TallerLivePrototype() {
 
       {/* Header */}
       <header className="bg-[#14151F] text-white px-5 pt-5 pb-10 rounded-b-[28px] shadow-2xl border-b border-white/[0.08]">
-        {!isSupabaseConnected && (
-          <div className="bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] font-bold py-1 px-3 rounded-full mb-3 text-center">
-            MODO DEMO LOCAL: Los links solo funcionan en este navegador
-          </div>
-        )}
-
         {/* Fila 1: Logo · [Empresa en desktop] · Acciones */}
         <div className="flex items-center justify-between mb-3">
           {/* Izquierda: TallerLive */}
@@ -2185,9 +2138,6 @@ export default function TallerLivePrototype() {
             >
               <RefreshCw size={20} />
             </button>
-            <div className="bg-white/10 p-2 scale-90 rounded-2xl border border-white/10 backdrop-blur-md">
-              <SettingsIcon className="text-blue-400" size={22} />
-            </div>
           </div>
         </div>
 
@@ -2235,13 +2185,6 @@ export default function TallerLivePrototype() {
       <main className="p-3 space-y-2.5">
         {activeTab === 'taller' && (
           <>
-            {!isSupabaseConnected && (
-              <div className="bg-blue-900/30 border border-blue-500/20 p-4 rounded-2xl mb-4">
-                <p className="text-[10px] text-blue-300 font-bold uppercase leading-relaxed">
-                  💡 <span className="underline">Nota de Sincronización</span>: Como no hay base de datos conectada, los cambios que hagas en el móvil NO aparecerán aquí automáticamente. Prueba a abrir el link en este mismo navegador para ver la magia.
-                </p>
-              </div>
-            )}
             <div className="flex justify-between items-center px-1">
               <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Cola de Trabajo Activa</h2>
               <div className="flex items-center gap-1.5 text-blue-500 font-black text-xs uppercase cursor-pointer" onClick={() => setStatusFilter('all')}>
