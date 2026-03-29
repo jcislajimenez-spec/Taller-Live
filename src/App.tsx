@@ -268,6 +268,10 @@ const mapOrderToJob = (order: any): any => ({
   entryTime: new Date(order.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   description: order.description,
   public_token: order.public_token,
+  is_accepted: order.is_accepted ?? false,
+  quote_version: order.quote_version ?? 1,
+  approved_quote_version: order.approved_quote_version ?? null,
+  approved_at: order.approved_at ?? null,
   photos: order.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
   audios: order.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
   audioNotes: order.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || []
@@ -426,6 +430,9 @@ export default function TallerLivePrototype() {
     return localStorage.getItem('tallerlive_public_url') || '';
   });
   const [isApproved, setIsApproved] = useState(false);
+  const [justApproved, setJustApproved] = useState(false); // true solo cuando el cliente aprueba en esta sesión
+  const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
+  const [revisionJob, setRevisionJob] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'taller' | 'historial' | 'clientes' | 'ajustes'>('taller');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deliverConfirmId, setDeliverConfirmId] = useState<string | null>(null);
@@ -801,9 +808,9 @@ export default function TallerLivePrototype() {
             // Actualizar vista del cliente si es el mismo pedido
             setClientJob(prev => {
               if (prev && String(prev.id) === String(updatedOrder.id)) {
-                const isNowApproved = updatedOrder.status === 'repairing' ||
-                                     updatedOrder.status === 'ready' ||
-                                     updatedOrder.is_accepted === true;
+                const qv = updatedOrder.quote_version ?? 1;
+                const aqv = updatedOrder.approved_quote_version ?? null;
+                const isNowApproved = aqv !== null && aqv >= qv;
 
                 if (isNowApproved) setIsApproved(true);
 
@@ -811,7 +818,11 @@ export default function TallerLivePrototype() {
                   ...prev,
                   status: updatedOrder.status,
                   budget: updatedOrder.budget,
-                  aiDiagnosis: updatedOrder.description
+                  aiDiagnosis: updatedOrder.description,
+                  quote_version: qv,
+                  approved_quote_version: aqv,
+                  approved_at: updatedOrder.approved_at ?? null,
+                  is_accepted: updatedOrder.is_accepted ?? false,
                 };
               }
               return prev;
@@ -860,6 +871,8 @@ export default function TallerLivePrototype() {
             .single();
 
           if (data) {
+            const qv = data.quote_version ?? 1;
+            const aqv = data.approved_quote_version ?? null;
             const fetchedJob = {
               id: data.id,
               plate: data.vehicle?.plate,
@@ -872,12 +885,17 @@ export default function TallerLivePrototype() {
               budgetShared: !!data.budget,
               description: data.description,
               public_token: data.public_token,
+              is_accepted: data.is_accepted ?? false,
+              quote_version: qv,
+              approved_quote_version: aqv,
+              approved_at: data.approved_at ?? null,
               entryTime: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               photos: data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
               audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || []
             };
             setClientJob(fetchedJob);
-            setIsApproved(data.status === 'repairing' || data.status === 'ready' || data.is_accepted === true);
+            // Aprobado si la versión aprobada coincide con la versión actual
+            setIsApproved(aqv !== null && aqv >= qv);
             setViewMode('client');
             setIsClientLoading(false);
             return;
@@ -1362,6 +1380,37 @@ export default function TallerLivePrototype() {
     window.location.href = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
   };
 
+  const handleSendRevision = async (job: any) => {
+    const newVersion = (job.quote_version ?? 1) + 1;
+    const updatedJob = {
+      ...job,
+      quote_version: newVersion,
+      // approved_quote_version conserva el último valor aprobado
+      is_accepted: false,
+      status: 'waiting_customer' as JobStatus,
+    };
+
+    if (isSupabaseConnected) {
+      const { error } = await supabase.from('orders').update({
+        quote_version: newVersion,
+        // approved_quote_version omitido — BD conserva el valor existente
+        is_accepted: false,
+        status: 'waiting_customer',
+      }).eq('id', job.id);
+
+      if (error) {
+        notify('Error al crear revisión. Inténtalo de nuevo.', 'error');
+        return;
+      }
+    }
+
+    setJobs(prev => prev.map(j => String(j.id) === String(job.id) ? updatedJob : j));
+    setIsRevisionModalOpen(false);
+    setRevisionJob(null);
+    // skipStateUpdate=true porque ya pusimos status='waiting_customer' arriba
+    handleWhatsAppShare(updatedJob, true);
+  };
+
   const handleReadyNotification = (job: any) => {
     const message = `*✅ VEHÍCULO FINALIZADO - ${WORKSHOP_NAME.toUpperCase()}*\n\n` +
                     `Estimado/a *${job.customer}*,\n\n` +
@@ -1711,9 +1760,15 @@ export default function TallerLivePrototype() {
         return;
       }
 
-      // BD confirmó la aprobación
+      // BD confirmó la aprobación — marcar como "recién aprobado en esta sesión"
       setIsApproved(true);
-      setClientJob((prev: any) => ({ ...prev, status: 'repairing', is_accepted: true }));
+      setJustApproved(true);
+      setClientJob((prev: any) => ({
+        ...prev,
+        status: 'repairing',
+        is_accepted: true,
+        approved_quote_version: prev.quote_version ?? 1,
+      }));
     } catch (e: any) {
       console.error('[handleApproveBudget] Excepción:', e);
       notify('Error de conexión. Inténtalo de nuevo.', 'error');
@@ -1753,10 +1808,10 @@ export default function TallerLivePrototype() {
       );
     }
 
-    if (isApproved) {
+    if (justApproved) {
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-          <motion.div 
+          <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-100 text-center max-w-sm"
@@ -1909,32 +1964,54 @@ export default function TallerLivePrototype() {
           )}
 
           <div className="pt-4">
-            {clientJob.status === 'waiting_customer' && !isApproved && (
-              <p className="text-center text-sm text-slate-400 font-semibold mb-4">
-                Puedes aprobar ahora y nos ponemos con ello
-              </p>
-            )}
-            {clientJob.status === 'waiting_customer' && (
-              !isApproved ? (
-                <button
-                  onClick={handleApproveBudget}
-                  className="w-full py-5 bg-emerald-500 text-white rounded-3xl font-black uppercase text-sm shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 active:scale-95 transition-all"
-                >
-                  <CheckCircle2 size={20} />
-                  Aprobar Presupuesto
-                </button>
-              ) : (
-                <div className="w-full py-5 bg-emerald-100 text-emerald-700 rounded-3xl font-black uppercase text-sm flex items-center justify-center gap-3 border-2 border-emerald-200">
-                  <CheckCircle2 size={20} />
-                  Presupuesto Aprobado
-                </div>
-              )
-            )}
-            {clientJob.status === 'delivered' && (
-              <p className="text-center text-sm font-bold text-slate-400">
-                Vehículo entregado. Gracias por confiar en nosotros.
-              </p>
-            )}
+            {(() => {
+              const qv = clientJob.quote_version ?? 1;
+              const aqv = clientJob.approved_quote_version ?? null;
+              const currentVersionApproved = aqv !== null && aqv >= qv;
+
+              if (currentVersionApproved) {
+                // Presupuesto ya aprobado: mostrar aviso informativo, no botón
+                return (
+                  <div className="space-y-3">
+                    <div className="w-full py-4 bg-emerald-50 text-emerald-700 rounded-3xl font-black uppercase text-sm flex items-center justify-center gap-3 border-2 border-emerald-200">
+                      <CheckCircle2 size={20} />
+                      Presupuesto aprobado
+                    </div>
+                    <p className="text-center text-xs text-slate-400 font-medium">
+                      Este enlace queda disponible como justificante de su aprobación.
+                    </p>
+                  </div>
+                );
+              }
+
+              if (clientJob.status === 'waiting_customer') {
+                // Nueva versión pendiente de aprobación
+                return (
+                  <>
+                    <p className="text-center text-sm text-slate-400 font-semibold mb-4">
+                      Puedes aprobar ahora y nos ponemos con ello
+                    </p>
+                    <button
+                      onClick={handleApproveBudget}
+                      className="w-full py-5 bg-emerald-500 text-white rounded-3xl font-black uppercase text-sm shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 active:scale-95 transition-all"
+                    >
+                      <CheckCircle2 size={20} />
+                      Aprobar Presupuesto
+                    </button>
+                  </>
+                );
+              }
+
+              if (clientJob.status === 'delivered') {
+                return (
+                  <p className="text-center text-sm font-bold text-slate-400">
+                    Vehículo entregado. Gracias por confiar en nosotros.
+                  </p>
+                );
+              }
+
+              return null;
+            })()}
             <button 
               onClick={() => window.location.href = window.location.origin}
               className="w-full py-5 mt-3 text-slate-400 font-black uppercase text-xs hover:text-slate-600 transition-colors"
@@ -2352,6 +2429,26 @@ export default function TallerLivePrototype() {
                       </button>
                     );
                   })()}
+
+                  {/* Acciones secundarias: reenvío y revisión de presupuesto */}
+                  {job.budgetShared && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={() => handleWhatsAppShare(job, true)}
+                        className="flex-1 py-2 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 bg-slate-700/50 text-slate-300 hover:bg-slate-600/60 transition-all border border-slate-600/40"
+                      >
+                        <RefreshCw size={13} />
+                        Reenviar informe
+                      </button>
+                      <button
+                        onClick={() => { setRevisionJob(job); setIsRevisionModalOpen(true); }}
+                        className="flex-1 py-2 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 bg-amber-900/40 text-amber-400 hover:bg-amber-900/60 transition-all border border-amber-700/40"
+                      >
+                        <Edit2 size={13} />
+                        Presupuesto revisado
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               ))}
               </div>
@@ -3123,6 +3220,60 @@ export default function TallerLivePrototype() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: CONFIRMACIÓN REVISIÓN PRESUPUESTO */}
+      <AnimatePresence>
+        {isRevisionModalOpen && revisionJob && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setIsRevisionModalOpen(false); setRevisionJob(null); }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              className="relative w-full max-w-md bg-[#0d1117] border border-amber-700/40 rounded-t-[40px] sm:rounded-[40px] shadow-2xl p-8 space-y-6"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-black text-white uppercase tracking-tight">Presupuesto revisado</h2>
+                  <p className="text-slate-400 text-sm mt-1">{revisionJob.model} · {revisionJob.plate}</p>
+                </div>
+                <button onClick={() => { setIsRevisionModalOpen(false); setRevisionJob(null); }} className="p-2 bg-slate-800 rounded-full text-slate-400"><X size={18} /></button>
+              </div>
+
+              <div className="bg-amber-900/20 border border-amber-700/40 rounded-2xl p-4 space-y-2 text-sm">
+                <p className="font-bold text-amber-400 uppercase text-xs tracking-widest">¿Qué ocurrirá?</p>
+                <ul className="text-slate-300 space-y-1.5">
+                  <li className="flex gap-2"><span className="text-amber-500">→</span>El presupuesto pasa a la versión {(revisionJob.quote_version ?? 1) + 1}</li>
+                  <li className="flex gap-2"><span className="text-amber-500">→</span>La aprobación anterior queda anulada</li>
+                  <li className="flex gap-2"><span className="text-amber-500">→</span>El cliente recibirá el nuevo enlace por WhatsApp</li>
+                  <li className="flex gap-2"><span className="text-amber-500">→</span>El mismo enlace sigue siendo válido</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setIsRevisionModalOpen(false); setRevisionJob(null); }}
+                  className="flex-1 py-3 rounded-2xl font-black uppercase text-xs tracking-widest bg-slate-800 text-slate-400 hover:bg-slate-700 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleSendRevision(revisionJob)}
+                  className="flex-1 py-3 rounded-2xl font-black uppercase text-xs tracking-widest bg-amber-500 text-white hover:bg-amber-400 transition-all shadow-lg shadow-amber-900/30"
+                >
+                  Enviar revisión
+                </button>
               </div>
             </motion.div>
           </div>
