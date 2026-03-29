@@ -2448,7 +2448,8 @@ export default function TallerLivePrototype() {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-4"
           >
-            {/* Diagnóstico de sesión — validación multi-taller */}
+            {/* Diagnóstico de sesión — solo visible para super_admin */}
+            {isSuperAdmin && (
             <div className="bg-[#0a0f2e] rounded-[32px] p-6 border border-yellow-500/30 space-y-3">
               <h3 className="text-xs font-black text-yellow-500 uppercase tracking-[0.2em]">Sesión activa</h3>
               <div className="space-y-2 font-mono text-xs">
@@ -2474,6 +2475,7 @@ export default function TallerLivePrototype() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Información del taller */}
             <div className="bg-[#131D3B] rounded-[32px] p-8 border border-white/10 space-y-4">
