@@ -877,7 +877,7 @@ export default function TallerLivePrototype() {
               audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || []
             };
             setClientJob(fetchedJob);
-            setIsApproved(data.status === 'repairing' || data.status === 'ready');
+            setIsApproved(data.status === 'repairing' || data.status === 'ready' || data.is_accepted === true);
             setViewMode('client');
             setIsClientLoading(false);
             return;
@@ -1311,7 +1311,9 @@ export default function TallerLivePrototype() {
       return;
     }
 
-    if (!skipStateUpdate) {
+    // Solo actualizar a waiting_customer si el pedido no ha pasado ya por la aprobación
+    const isPastApproval = ['repairing', 'ready', 'delivered'].includes(job.status);
+    if (!skipStateUpdate && !isPastApproval) {
       setJobs(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, budgetShared: true, status: 'waiting_customer' } : j));
       if (isSupabaseConnected) {
         supabase.from('orders').update({ status: 'waiting_customer' }).eq('id', job.id).then();
