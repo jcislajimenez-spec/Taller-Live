@@ -24,17 +24,45 @@ export const getStepsDone = (job: Job): boolean[] => [
   job.budgetShared === true,
 ];
 
+// Siguiente acción disponible según el estado real del job
+export const getNextAction = (job: Job) => {
+  // Estados terminales: sin CTA
+  if (job.status === 'ready' || job.status === 'delivered') return null;
+
+  // Informe listo = texto + precio (fotos y audio son opcionales)
+  const informeReady = parseFloat(job.budget ?? '0') > 0 && !!(job.aiDiagnosis?.trim());
+  if (!informeReady) return { label: 'Crear informe', Icon: FileText, variant: 'blue', action: 'budget' } as const;
+
+  if (!job.budgetShared) return { label: 'Enviar informe presupuesto', Icon: MessageSquare, variant: 'blue', action: 'share' } as const;
+
+  // Revisión pendiente = precio cambió desde el último envío (quote_version > 1 y mayor que la última aprobada)
+  const hasPendingRevision = (job.quote_version ?? 1) > 1 && (job.quote_version ?? 1) > (job.approved_quote_version ?? 0);
+  if (job.status === 'repairing') {
+    if (hasPendingRevision) return { label: 'Enviar presupuesto revisado', Icon: MessageSquare, variant: 'blue',  action: 'share'  } as const;
+    return                          { label: 'Finalizar reparación',        Icon: CheckCircle2,  variant: 'green', action: 'finish' } as const;
+  }
+  if (job.status === 'waiting_customer') {
+    const label = hasPendingRevision ? 'Enviar presupuesto revisado' : 'Reenviar informe';
+    return { label, Icon: MessageSquare, variant: 'blue' as const, action: 'share' as const };
+  }
+  return null;
+};
+
+// Mapeo acción → índice del paso activo en el tracker visual
+const ACTION_TO_STEP: Record<string, number> = { budget: 2, share: 3, finish: -1 };
+
 export const WorkflowTracker = ({ job, onStepClick }: { job: Job; onStepClick?: (step: number) => void }) => {
   const done = getStepsDone(job);
   const completedCount = done.filter(Boolean).length;
-  const firstPending = done.findIndex(d => !d);
+  const nextAction = getNextAction(job);
+  const activeStep = nextAction ? (ACTION_TO_STEP[nextAction.action] ?? -1) : -1;
 
   return (
     <div className="space-y-2 mt-2">
       <div className="flex items-center">
         {WORKFLOW_STEPS.map(({ key, label, Icon }, i) => {
           const isDone   = done[i];
-          const isActive = !isDone && i === firstPending;
+          const isActive = !isDone && i === activeStep;
           return (
             <React.Fragment key={key}>
               <div
@@ -81,28 +109,4 @@ export const WorkflowTracker = ({ job, onStepClick }: { job: Job; onStepClick?: 
       </div>
     </div>
   );
-};
-
-// Siguiente acción disponible según el estado real del job
-export const getNextAction = (job: Job) => {
-  // Estados terminales: sin CTA
-  if (job.status === 'ready' || job.status === 'delivered') return null;
-
-  // Informe listo = texto + precio (fotos y audio son opcionales)
-  const informeReady = parseFloat(job.budget ?? '0') > 0 && !!(job.aiDiagnosis?.trim());
-  if (!informeReady) return { label: 'Crear informe', Icon: FileText, variant: 'blue', action: 'budget' } as const;
-
-  if (!job.budgetShared) return { label: 'Enviar informe presupuesto', Icon: MessageSquare, variant: 'blue', action: 'share' } as const;
-
-  // Revisión pendiente = precio cambió desde el último envío (quote_version > 1 y mayor que la última aprobada)
-  const hasPendingRevision = (job.quote_version ?? 1) > 1 && (job.quote_version ?? 1) > (job.approved_quote_version ?? 0);
-  if (job.status === 'repairing') {
-    if (hasPendingRevision) return { label: 'Enviar presupuesto revisado', Icon: MessageSquare, variant: 'blue',  action: 'share'  } as const;
-    return                          { label: 'Finalizar reparación',        Icon: CheckCircle2,  variant: 'green', action: 'finish' } as const;
-  }
-  if (job.status === 'waiting_customer') {
-    const label = hasPendingRevision ? 'Enviar presupuesto revisado' : 'Reenviar informe';
-    return { label, Icon: MessageSquare, variant: 'blue' as const, action: 'share' as const };
-  }
-  return null;
 };

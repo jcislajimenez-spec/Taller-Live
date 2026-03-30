@@ -1088,8 +1088,8 @@ export default function TallerLivePrototype() {
   };
 
   const handleWhatsAppShare = (job: any) => {
-    if (!job.budget || parseFloat(job.budget) < 0) {
-      alert("Debes ingresar un presupuesto antes de enviarlo por WhatsApp.");
+    if (!job.aiDiagnosis?.trim() || !job.budget || parseFloat(job.budget) <= 0) {
+      alert("Debes completar el informe con texto y precio antes de enviarlo.");
       return;
     }
 
