@@ -48,21 +48,22 @@ export const getNextAction = (job: Job) => {
   return null;
 };
 
-// Mapeo acción → índice del paso activo en el tracker visual
-const ACTION_TO_STEP: Record<string, number> = { budget: 2, share: 3, finish: -1 };
-
 export const WorkflowTracker = ({ job, onStepClick }: { job: Job; onStepClick?: (step: number) => void }) => {
   const done = getStepsDone(job);
   const completedCount = done.filter(Boolean).length;
-  const nextAction = getNextAction(job);
-  const activeStep = nextAction ? (ACTION_TO_STEP[nextAction.action] ?? -1) : -1;
+  // Fotos, Grabación e Informe son siempre accesibles (azul si no completados).
+  // Envío solo se activa cuando el informe está completo (texto + precio).
+  const informeReady = parseFloat(job.budget ?? '0') > 0 && !!(job.aiDiagnosis?.trim());
+  const available = [true, true, true, informeReady];
+  // Barra = fase más alta alcanzada (no suma de ticks): audio sin fotos = 50%, no 25%
+  const barPhase = done[3] ? 4 : done[2] ? 3 : done[1] ? 2 : done[0] ? 1 : 0;
 
   return (
     <div className="space-y-2 mt-2">
       <div className="flex items-center">
         {WORKFLOW_STEPS.map(({ key, label, Icon }, i) => {
           const isDone   = done[i];
-          const isActive = !isDone && i === activeStep;
+          const isActive = !isDone && available[i];
           return (
             <React.Fragment key={key}>
               <div
@@ -100,7 +101,7 @@ export const WorkflowTracker = ({ job, onStepClick }: { job: Job; onStepClick?: 
         <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
-            style={{ backgroundColor: '#3FA37A', width: `${(completedCount / 4) * 100}%` }}
+            style={{ backgroundColor: '#3FA37A', width: `${(barPhase / 4) * 100}%` }}
           />
         </div>
         <span className="text-sm font-black text-slate-500 shrink-0 tabular-nums">
