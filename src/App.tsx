@@ -2117,11 +2117,8 @@ export default function TallerLivePrototype() {
                         <span className="text-xs font-black uppercase tracking-widest">Completado</span>
                       </div>
                     );
-                    const isThisJobRecording = isRecording && activeJobId === job.id;
                     const handleCTA = () => {
-                      if (next.action === 'photo') handlePhotoClick(job.id);
-                      else if (next.action === 'audio') isThisJobRecording ? stopRecording() : startRecording(job.id);
-                      else if (next.action === 'budget') openBudgetModal(job.id);
+                      if (next.action === 'budget') openBudgetModal(job.id);
                       else if (next.action === 'share') handleWhatsAppShare(job);
                       else if (next.action === 'finish') {
                         const updatedStatus = 'ready';
@@ -2133,19 +2130,15 @@ export default function TallerLivePrototype() {
                     return (
                       <button
                         onClick={handleCTA}
-                        disabled={next.action === 'audio' && isRecording && !isThisJobRecording}
                         className={cn(
                           "mt-2 w-full py-3 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 text-base shadow-md border-b-4 active:border-b-0 active:translate-y-0.5 transition-all",
-                          next.action === 'audio' && isThisJobRecording
-                            ? "bg-red-500 text-white border-red-700 animate-pulse"
-                            : next.variant === 'green'
-                              ? "bg-[#3FA37A] text-white border-[#2d7a5a]"
-                              : "bg-blue-700 text-white/90 border-blue-900 hover:bg-blue-800 shadow-blue-100",
-                          next.action === 'audio' && isRecording && !isThisJobRecording && "opacity-30 cursor-not-allowed"
+                          next.variant === 'green'
+                            ? "bg-[#3FA37A] text-white border-[#2d7a5a]"
+                            : "bg-blue-700 text-white/90 border-blue-900 hover:bg-blue-800 shadow-blue-100"
                         )}
                       >
                         <next.Icon size={16} />
-                        {next.action === 'audio' && isThisJobRecording ? 'Detener grabación' : next.label}
+                        {next.label}
                       </button>
                     );
                   })()}

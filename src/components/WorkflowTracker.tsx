@@ -20,7 +20,7 @@ export const WORKFLOW_STEPS = [
 export const getStepsDone = (job: Job): boolean[] => [
   (job.photos?.length ?? 0) > 0,
   (job.audios?.length ?? 0) > 0,
-  parseFloat(job.budget ?? '0') > 0,
+  parseFloat(job.budget ?? '0') > 0 && !!(job.aiDiagnosis?.trim()),
   job.budgetShared === true,
 ];
 
@@ -85,10 +85,15 @@ export const WorkflowTracker = ({ job, onStepClick }: { job: Job; onStepClick?: 
 
 // Siguiente acción disponible según el estado real del job
 export const getNextAction = (job: Job) => {
-  if (!(job.photos?.length > 0))            return { label: 'Capturar fotos',            Icon: Camera,        variant: 'blue',  action: 'photo'  } as const;
-  if (!(job.audios?.length > 0))            return { label: 'Registrar grabación',       Icon: Mic,           variant: 'blue',  action: 'audio'  } as const;
-  if (!(parseFloat(job.budget ?? '0') > 0)) return { label: 'Crear informe',             Icon: FileText,      variant: 'blue',  action: 'budget' } as const;
-  if (!job.budgetShared)                    return { label: 'Enviar informe presupuesto', Icon: MessageSquare, variant: 'blue',  action: 'share'  } as const;
+  // Estados terminales: sin CTA
+  if (job.status === 'ready' || job.status === 'delivered') return null;
+
+  // Informe listo = texto + precio (fotos y audio son opcionales)
+  const informeReady = parseFloat(job.budget ?? '0') > 0 && !!(job.aiDiagnosis?.trim());
+  if (!informeReady) return { label: 'Crear informe', Icon: FileText, variant: 'blue', action: 'budget' } as const;
+
+  if (!job.budgetShared) return { label: 'Enviar informe presupuesto', Icon: MessageSquare, variant: 'blue', action: 'share' } as const;
+
   // Revisión pendiente = precio cambió desde el último envío (quote_version > 1 y mayor que la última aprobada)
   const hasPendingRevision = (job.quote_version ?? 1) > 1 && (job.quote_version ?? 1) > (job.approved_quote_version ?? 0);
   if (job.status === 'repairing') {
@@ -98,10 +103,6 @@ export const getNextAction = (job: Job) => {
   if (job.status === 'waiting_customer') {
     const label = hasPendingRevision ? 'Enviar presupuesto revisado' : 'Reenviar informe';
     return { label, Icon: MessageSquare, variant: 'blue' as const, action: 'share' as const };
-  }
-  if (job.status === 'ready') {
-    // Reenvío simple — precio bloqueado, sin revisión posible
-    return { label: 'Reenviar informe', Icon: MessageSquare, variant: 'blue' as const, action: 'share' as const };
   }
   return null;
 };
