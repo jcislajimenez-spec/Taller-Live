@@ -26,10 +26,12 @@ import {
   History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from './lib/utils';
+import { cn, generateUUID } from './lib/utils';
 import { supabase, type Order, type Vehicle, type Customer } from './lib/supabase';
 import { transcribeAndDiagnose, isGeminiConfigured } from './services/geminiService';
 import { AudioRecorder } from './services/audioService';
+import { compressImage } from './services/imageService';
+import { mapOrderToJob } from './lib/mapOrderToJob';
 import type { Job, JobStatus, Urgency } from './types';
 import { UrgencyBadge } from './components/UrgencyBadge';
 import { StatusBadge } from './components/StatusBadge';
@@ -72,94 +74,9 @@ const MOCK_JOBS: any[] = [
 ];
 
 // (UrgencyBadge, StatusBadge, WorkflowTracker, getNextAction movidos a src/components/)
-
-// --- UTILIDADES ---
-const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    try {
-      return crypto.randomUUID();
-    } catch (e) {
-      // Fallback if randomUUID fails for some reason
-    }
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
-// --- Utilidad: Comprimir imagen antes de subir ---
-const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<{ blob: Blob; base64: string }> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const canvas = document.createElement('canvas');
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      img.onload = () => {
-        let w = img.width;
-        let h = img.height;
-
-        if (w > maxWidth) {
-          h = Math.round((h * maxWidth) / w);
-          w = maxWidth;
-        }
-
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { reject(new Error('No canvas context')); return; }
-        ctx.drawImage(img, 0, 0, w, h);
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) { reject(new Error('Compression failed')); return; }
-            const compressedReader = new FileReader();
-            compressedReader.onloadend = () => {
-              resolve({ blob, base64: compressedReader.result as string });
-            };
-            compressedReader.readAsDataURL(blob);
-          },
-          'image/jpeg',
-          quality
-        );
-      };
-      img.onerror = () => reject(new Error('Error loading image'));
-      img.src = reader.result as string;
-    };
-    reader.onerror = () => reject(new Error('Error reading file'));
-    reader.readAsDataURL(file);
-  });
-};
-
-// --- Transformación única: Supabase order row → job de React ---
-// Única fuente de verdad para la estructura de un job en el frontend.
-// Usada por fetchJobsFromSupabase y refreshSingleJob.
-const mapOrderToJob = (order: any): Job => ({
-  id: order.id,
-  vehicle_id: order.vehicle_id,
-  plate: order.vehicle?.plate ?? '',
-  model: order.vehicle?.model ?? '',
-  customer: order.customer?.name ?? '',
-  customerPhone: order.customer?.phone ?? '',
-  status: order.status,
-  budget: order.budget?.toString() || '0',
-  aiDiagnosis: order.description,
-  budgetShared: order.status === 'waiting_customer' || order.status === 'repairing' || order.status === 'ready',
-  urgency: order.urgency,
-  entryTime: new Date(order.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  description: order.description,
-  public_token: order.public_token,
-  is_accepted: order.is_accepted ?? false,
-  quote_version: order.quote_version ?? 1,
-  approved_quote_version: order.approved_quote_version ?? null,
-  approved_at: order.approved_at ?? null,
-  photos: order.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
-  audios: order.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
-  audioNotes: order.media?.filter((m: any) => m.media_type === 'audio' && m.note).map((m: any) => m.note) || [],
-  created_at: order.created_at,
-});
+// (generateUUID movido a src/lib/utils.ts)
+// (compressImage movido a src/services/imageService.ts)
+// (mapOrderToJob movido a src/lib/mapOrderToJob.ts)
 
 // (LoginScreen y ResetPasswordScreen movidos a src/screens/)
 
