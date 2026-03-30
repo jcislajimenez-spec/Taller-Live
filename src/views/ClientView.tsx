@@ -184,6 +184,11 @@ export function ClientView({
           );
         })()}
 
+        {/* DEBUG TEMPORAL - borrar después */}
+        <p className="text-xs text-red-500 font-bold px-2">
+          DEBUG: {job.photos?.length ?? 0} foto(s) en array
+        </p>
+
         {/* Evidencias del Taller */}
         {(job.photos?.length > 0 || job.audios?.length > 0) && (
           <div className="space-y-4">
