@@ -30,35 +30,14 @@ import { cn } from './lib/utils';
 import { supabase, type Order, type Vehicle, type Customer } from './lib/supabase';
 import { transcribeAndDiagnose, isGeminiConfigured } from './services/geminiService';
 import { AudioRecorder } from './services/audioService';
+import type { Job, JobStatus, Urgency } from './types';
+import { UrgencyBadge } from './components/UrgencyBadge';
+import { StatusBadge } from './components/StatusBadge';
+import { WorkflowTracker, getNextAction } from './components/WorkflowTracker';
+import { LoginScreen } from './screens/LoginScreen';
+import { ResetPasswordScreen } from './screens/ResetPasswordScreen';
 
-// --- Tipos ---
-type JobStatus = 'waiting' | 'diagnosed' | 'waiting_customer' | 'repairing' | 'ready' | 'delivered' | 'awaiting_diagnosis' | 'diagnosing';
-type Urgency = 'low' | 'medium' | 'high';
-
-type Job = {
-  id: string;
-  vehicle_id?: string;
-  plate: string;
-  model: string;
-  customer: string;
-  customerPhone: string;
-  status: JobStatus;
-  urgency?: Urgency;
-  budget: string;
-  budgetShared: boolean;
-  aiDiagnosis: string;
-  description: string;
-  public_token: string | null;
-  is_accepted: boolean;
-  quote_version: number;
-  approved_quote_version: number | null;
-  approved_at: string | null;
-  photos: string[];
-  audios: string[];
-  audioNotes?: string[];
-  entryTime: string;
-  created_at?: string;
-};
+// (tipos movidos a src/types.ts)
 
 // --- Constantes de configuración ---
 const CURRENT_WORKSHOP_ID = import.meta.env.VITE_WORKSHOP_ID || '';
@@ -91,142 +70,7 @@ const MOCK_JOBS: any[] = [
   }
 ];
 
-// --- Componentes Auxiliares ---
-
-const UrgencyBadge = ({ urgency }: { urgency: 'low' | 'medium' | 'high' }) => {
-  const config = {
-    low: { label: 'Baja', color: 'bg-slate-100 text-slate-600 border-slate-200' },
-    medium: { label: 'Media', color: 'bg-blue-900/40 text-blue-400 border-blue-200' },
-    high: { label: 'Alta', color: 'bg-red-100 text-red-600 border-red-200' },
-  };
-
-  const { label, color } = config[urgency] || config.medium;
-  return (
-    <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border", color)}>
-      {label}
-    </span>
-  );
-};
-
-const StatusBadge = ({ status }: { status: JobStatus }) => {
-  const config: Record<string, { label: string; color: string }> = {
-    // Estados actuales
-    waiting:          { label: 'En espera',         color: 'bg-[#EDEDED] text-[#787878] border-[#D0D0D0]' },
-    diagnosed:        { label: 'Diagnosticado',      color: 'bg-[#F0EBE0] text-[#7B6347] border-[#D4C4A0]' },
-    waiting_customer: { label: 'En espera cliente',  color: 'bg-[#F2E8D0] text-[#7A5C2A] border-[#CDAC70]' },
-    repairing:        { label: 'En preparación',     color: 'bg-[#D5E2F0] text-[#2E4870] border-[#7AAAD0]' },
-    ready:            { label: 'Listo ✓',            color: 'bg-[#C8E6C4] text-[#2E5E35] border-[#7AB87A]' },
-    delivered:        { label: 'Entregado',           color: 'bg-[#E0E0E0] text-[#505050] border-[#C0C0C0]' },
-    // Legado (datos existentes en BD)
-    awaiting_diagnosis: { label: 'En espera',        color: 'bg-[#EDEDED] text-[#787878] border-[#D0D0D0]' },
-    diagnosing:         { label: 'Diagnosticado',     color: 'bg-[#F0EBE0] text-[#7B6347] border-[#D4C4A0]' },
-  };
-
-  const { label, color } = config[status] ?? { label: status ?? 'Desconocido', color: 'bg-slate-100 text-slate-500 border-slate-200' };
-  return (
-    <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border", color)}>
-      {label}
-    </span>
-  );
-};
-
-// --- WORKFLOW TRACKER ---
-
-const WORKFLOW_STEPS = [
-  { key: 'photo',  label: 'Fotos',     Icon: Camera         },
-  { key: 'audio',  label: 'Grabación', Icon: Mic            },
-  { key: 'budget', label: 'Informe',   Icon: FileText       },
-  { key: 'shared', label: 'Envío',     Icon: MessageSquare  },
-] as const;
-
-const getStepsDone = (job: Job): boolean[] => [
-  (job.photos?.length ?? 0) > 0,
-  (job.audios?.length ?? 0) > 0,
-  parseFloat(job.budget ?? '0') > 0,
-  job.budgetShared === true,
-];
-
-const WorkflowTracker = ({ job, onStepClick }: { job: Job; onStepClick?: (step: number) => void }) => {
-  const done = getStepsDone(job);
-  const completedCount = done.filter(Boolean).length;
-  const firstPending = done.findIndex(d => !d);
-
-  return (
-    <div className="space-y-2 mt-2">
-      <div className="flex items-center">
-        {WORKFLOW_STEPS.map(({ key, label, Icon }, i) => {
-          const isDone   = done[i];
-          const isActive = !isDone && i === firstPending;
-          return (
-            <React.Fragment key={key}>
-              <div
-                className="flex flex-col items-center gap-0.5 flex-1 cursor-pointer select-none"
-                onClick={() => onStepClick?.(i)}
-              >
-                <div className={cn(
-                  "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-200",
-                  isDone   && "bg-[#3FA37A] border-[#3FA37A] text-white",
-                  isActive && "bg-blue-700 border-blue-700 text-white ring-2 ring-blue-900",
-                  !isDone && !isActive && "bg-[#1C1E28] border-slate-600 text-slate-500"
-                )}>
-                  {isDone ? <Check size={18} /> : <Icon size={18} />}
-                </div>
-                <span className={cn(
-                  "text-[10px] font-black uppercase tracking-wide leading-none",
-                  isDone   && "text-[#3FA37A]",
-                  isActive && "text-blue-400",
-                  !isDone && !isActive && "text-slate-400"
-                )}>
-                  {label}
-                </span>
-              </div>
-              {i < WORKFLOW_STEPS.length - 1 && (
-                <div className={cn(
-                  "h-px flex-1 mb-4 mx-0.5 transition-colors duration-300",
-                  done[i] ? "bg-[#3FA37A]" : "bg-slate-600/60"
-                )} />
-              )}
-            </React.Fragment>
-          );
-        })}
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ backgroundColor: '#3FA37A', width: `${(completedCount / 4) * 100}%` }}
-          />
-        </div>
-        <span className="text-sm font-black text-slate-500 shrink-0 tabular-nums">
-          {completedCount}/4
-        </span>
-      </div>
-    </div>
-  );
-};
-
-// Siguiente acción disponible según el estado real del job
-const getNextAction = (job: Job) => {
-  if (!(job.photos?.length > 0))            return { label: 'Capturar fotos',            Icon: Camera,        variant: 'blue',  action: 'photo'  } as const;
-  if (!(job.audios?.length > 0))            return { label: 'Registrar grabación',       Icon: Mic,           variant: 'blue',  action: 'audio'  } as const;
-  if (!(parseFloat(job.budget ?? '0') > 0)) return { label: 'Crear informe',             Icon: FileText,      variant: 'blue',  action: 'budget' } as const;
-  if (!job.budgetShared)                    return { label: 'Enviar informe presupuesto', Icon: MessageSquare, variant: 'blue',  action: 'share'  } as const;
-  // Revisión pendiente = precio cambió desde el último envío (quote_version > 1 y mayor que la última aprobada)
-  const hasPendingRevision = (job.quote_version ?? 1) > 1 && (job.quote_version ?? 1) > (job.approved_quote_version ?? 0);
-  if (job.status === 'repairing') {
-    if (hasPendingRevision) return { label: 'Enviar presupuesto revisado', Icon: MessageSquare, variant: 'blue',  action: 'share'  } as const;
-    return                          { label: 'Finalizar reparación',        Icon: CheckCircle2,  variant: 'green', action: 'finish' } as const;
-  }
-  if (job.status === 'waiting_customer') {
-    const label = hasPendingRevision ? 'Enviar presupuesto revisado' : 'Reenviar informe';
-    return { label, Icon: MessageSquare, variant: 'blue' as const, action: 'share' as const };
-  }
-  if (job.status === 'ready') {
-    // Reenvío simple — precio bloqueado, sin revisión posible
-    return { label: 'Reenviar informe', Icon: MessageSquare, variant: 'blue' as const, action: 'share' as const };
-  }
-  return null;
-};
+// (UrgencyBadge, StatusBadge, WorkflowTracker, getNextAction movidos a src/components/)
 
 // --- UTILIDADES ---
 const generateUUID = () => {
@@ -316,121 +160,7 @@ const mapOrderToJob = (order: any): Job => ({
   created_at: order.created_at,
 });
 
-// --- ResetPasswordScreen ---
-function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password !== confirm) { setError('Las contraseñas no coinciden'); return; }
-    if (password.length < 6) { setError('Mínimo 6 caracteres'); return; }
-    setError('');
-    setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) { setError(updateError.message); setLoading(false); return; }
-    setDone(true);
-    setTimeout(onDone, 1500);
-  };
-
-  return (
-    <div className="min-h-screen bg-[#050A1F] flex items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-black tracking-tighter uppercase italic text-blue-400">TallerLive</h1>
-          <p className="text-slate-400 text-sm font-bold mt-1">Nueva contraseña</p>
-        </div>
-        {done ? (
-          <p className="text-emerald-400 font-black text-center">Contraseña actualizada. Entrando...</p>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="password"
-              required
-              placeholder="Nueva contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 px-5 text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-500"
-            />
-            <input
-              type="password"
-              required
-              placeholder="Confirmar contraseña"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 px-5 text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-500"
-            />
-            {error && <p className="text-red-400 text-sm font-bold text-center">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-sm tracking-widest transition-all disabled:opacity-50"
-            >
-              {loading ? 'Guardando...' : 'Guardar contraseña'}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// --- LoginScreen ---
-function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    if (authError) setError(authError.message);
-    setLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen bg-[#050A1F] flex items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-black tracking-tighter uppercase italic text-blue-400">TallerLive</h1>
-          <p className="text-slate-400 text-sm font-bold mt-1">Accede a tu taller</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            required
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 px-5 text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-500"
-          />
-          <input
-            type="password"
-            required
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 px-5 text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-500"
-          />
-          {error && <p className="text-red-400 text-sm font-bold text-center">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-sm tracking-widest transition-all disabled:opacity-50"
-          >
-            {loading ? 'Entrando...' : 'Entrar'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
+// (LoginScreen y ResetPasswordScreen movidos a src/screens/)
 
 export default function TallerLivePrototype() {
   const path = window.location.pathname;
