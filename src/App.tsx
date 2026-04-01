@@ -534,15 +534,7 @@ export default function TallerLivePrototype() {
         setIsClientLoading(true);
         try {
           const { data, error } = await supabase
-            .from('orders')
-            .select(`
-              *,
-              vehicle:vehicles(*),
-              customer:customers(*),
-              media:order_media(*)
-            `)
-            .eq('public_token', tokenParam)
-            .single();
+            .rpc('get_order_by_token', { p_token: tokenParam });
 
           if (data) {
             const qv = data.quote_version ?? 1;
@@ -552,7 +544,7 @@ export default function TallerLivePrototype() {
               plate: data.vehicle?.plate,
               model: data.vehicle?.model,
               customer: data.customer?.name,
-              customerPhone: data.customer?.phone,
+              customerPhone: '',
               status: data.status,
               budget: data.budget?.toString() || '0',
               aiDiagnosis: data.description,
