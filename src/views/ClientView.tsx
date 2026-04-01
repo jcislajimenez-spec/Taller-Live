@@ -145,7 +145,7 @@ export function ClientView({
             <span className="text-4xl font-black text-blue-600">{job.budget || '0'}€</span>
             {job.photos?.length > 0 && (
               <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-white shadow-md shrink-0">
-                <img src={job.photos[0]} alt="Evidencia" className="block w-full h-full object-cover" />
+                <img src={job.photos[0]} alt="Evidencia" className="block w-full h-auto object-contain" />
               </div>
             )}
           </div>
@@ -196,7 +196,7 @@ export function ClientView({
                     <img
                       src={photo}
                       alt={`Evidencia ${i + 1}`}
-                      className="block w-full object-cover rounded-2xl"
+                      className="block w-full h-auto object-contain rounded-2xl"
                       style={{ maxHeight: '400px' }}
                     />
                   </div>
