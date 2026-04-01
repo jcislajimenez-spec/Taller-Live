@@ -141,10 +141,9 @@ export function ClientView({
               </span>
             )}
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-4xl font-black text-blue-600">{job.budget || '0'}€</span>
+          <div className="flex justify-end">
             {job.photos?.length > 0 && (
-              <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-white shadow-md shrink-0">
+              <div className="w-20 h-20 rounded-xl shrink-0 bg-black flex items-center justify-center">
                 <img src={job.photos[0]} alt="Evidencia" className="block w-full h-auto object-contain" />
               </div>
             )}
@@ -192,12 +191,11 @@ export function ClientView({
             {job.photos?.length > 0 && (
               <div className="space-y-3">
                 {job.photos.map((photo: string, i: number) => (
-                  <div key={i} className="rounded-2xl overflow-hidden border-2 border-white shadow-lg" style={{ maxWidth: '100%' }}>
+                  <div key={i} className="bg-black rounded-xl p-2 flex justify-center items-center">
                     <img
                       src={photo}
                       alt={`Evidencia ${i + 1}`}
-                      className="block w-full h-auto object-contain rounded-2xl"
-                      style={{ maxHeight: '400px' }}
+                      className="block max-h-[400px] object-contain mx-auto rounded-xl"
                     />
                   </div>
                 ))}
@@ -221,6 +219,12 @@ export function ClientView({
             )}
           </div>
         )}
+
+        <div className="mt-6 text-center">
+          <span className="text-5xl font-black text-blue-600">
+            {job.budget || '0'}€
+          </span>
+        </div>
 
         <div className="pt-4">
           {(() => {
