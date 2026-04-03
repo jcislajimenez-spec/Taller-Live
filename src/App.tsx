@@ -1612,7 +1612,7 @@ export default function TallerLivePrototype() {
       </div>
 
       {/* Estadísticas Rápidas - Más compactas */}
-      <div className="px-5 -mt-5 grid grid-cols-3 gap-3">
+      <div className="px-5 mt-3 grid grid-cols-3 gap-3">
         <StatCard label="En Taller" value={jobs.length} color="text-blue-700" />
         <StatCard label="Pendientes" value={jobs.filter(j => ['waiting', 'diagnosed', 'waiting_customer', 'awaiting_diagnosis', 'diagnosing'].includes(j.status)).length} color="text-orange-600" />
         <StatCard label="Listos" value={jobs.filter(j => j.status === 'ready').length} color="text-[#2E6B40]" />
