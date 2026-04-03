@@ -933,6 +933,7 @@ export default function TallerLivePrototype() {
 
   // --- Lógica de Presupuesto ---
   const openBudgetModal = (jobId: string) => {
+    if (!can(userRole, ACTIONS.GENERATE_BUDGET)) return;
     budgetJobIdRef.current = jobId;
     setActiveJobId(jobId);
     const job = jobs.find(j => String(j.id) === String(jobId));
@@ -942,6 +943,7 @@ export default function TallerLivePrototype() {
   };
 
   const handleSaveBudget = async () => {
+    if (!can(userRole, ACTIONS.EDIT_BUDGET)) return;
     if (isSavingBudget) return;
 
     const jobId = budgetJobIdRef.current;
@@ -999,6 +1001,7 @@ export default function TallerLivePrototype() {
   };
 
   const handleWhatsAppShare = (job: any) => {
+    if (!can(userRole, ACTIONS.SHARE_LINK)) return;
     if (!job.aiDiagnosis?.trim() || !job.budget || parseFloat(job.budget) <= 0) {
       alert("Debes completar el informe con texto y precio antes de enviarlo.");
       return;
@@ -1763,8 +1766,8 @@ export default function TallerLivePrototype() {
                     onStepClick={(step) => {
                       if (step === 0) handlePhotoClick(job.id);
                       else if (step === 1) isRecording && activeJobId === job.id ? stopRecording() : startRecording(job.id);
-                      else if (step === 2) openBudgetModal(job.id);
-                      else if (step === 3) handleWhatsAppShare(job);
+                      else if (step === 2 && can(userRole, ACTIONS.GENERATE_BUDGET)) openBudgetModal(job.id);
+                      else if (step === 3 && can(userRole, ACTIONS.SHARE_LINK)) handleWhatsAppShare(job);
                     }}
                   />
 
@@ -1777,6 +1780,16 @@ export default function TallerLivePrototype() {
                         <span className="text-xs font-black uppercase tracking-widest">Completado</span>
                       </div>
                     );
+                    const ctaBlocked =
+                      (next.action === 'budget' && !can(userRole, ACTIONS.GENERATE_BUDGET)) ||
+                      (next.action === 'share' && !can(userRole, ACTIONS.SHARE_LINK));
+
+                    if (ctaBlocked) return (
+                      <div className="mt-2 w-full py-3 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 text-xs bg-slate-800 text-slate-500 border border-slate-700 cursor-default select-none">
+                        Pendiente de administración
+                      </div>
+                    );
+
                     const handleCTA = () => {
                       if (next.action === 'budget') openBudgetModal(job.id);
                       else if (next.action === 'share') handleWhatsAppShare(job);
