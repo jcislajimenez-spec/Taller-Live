@@ -1955,46 +1955,50 @@ export default function TallerLivePrototype() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        className="p-2 text-slate-600 hover:text-blue-400 transition-colors"
-                        onClick={async () => {
-                          const newName = window.prompt('Nombre del cliente:', customer.name);
-                          if (newName === null) return;
-                          const newPhone = window.prompt('Teléfono:', customer.phone);
-                          if (newPhone === null) return;
+                      {can(userRole, ACTIONS.MANAGE_CLIENTS) && (
+                        <button
+                          className="p-2 text-slate-600 hover:text-blue-400 transition-colors"
+                          onClick={async () => {
+                            const newName = window.prompt('Nombre del cliente:', customer.name);
+                            if (newName === null) return;
+                            const newPhone = window.prompt('Teléfono:', customer.phone);
+                            if (newPhone === null) return;
 
-                          console.log("UPDATE CUSTOMER TRIGGERED", customer.id);
+                            console.log("UPDATE CUSTOMER TRIGGERED", customer.id);
 
-                          setCustomers(prev => prev.map(c =>
-                            c.id === customer.id ? { ...c, name: newName, phone: newPhone } : c
-                          ));
+                            setCustomers(prev => prev.map(c =>
+                              c.id === customer.id ? { ...c, name: newName, phone: newPhone } : c
+                            ));
 
-                          if (isSupabaseConnected) {
-                            const { error } = await supabase
-                              .from('customers')
-                              .update({
-                                name: newName,
-                                phone: newPhone,
-                                workshop_id: workshopId
-                              })
-                              .eq('id', customer.id);
-                            if (error) console.error("ERROR UPDATE CUSTOMER:", error);
-                          }
-                        }}
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={async () => {
-                          if (confirm('¿Eliminar cliente y todos sus vehículos/órdenes?')) {
-                            await supabase.from('customers').delete().eq('id', customer.id);
-                            setCustomers(prev => prev.filter(c => c.id !== customer.id));
-                          }
-                        }}
-                        className="p-2 text-slate-600 hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                            if (isSupabaseConnected) {
+                              const { error } = await supabase
+                                .from('customers')
+                                .update({
+                                  name: newName,
+                                  phone: newPhone,
+                                  workshop_id: workshopId
+                                })
+                                .eq('id', customer.id);
+                              if (error) console.error("ERROR UPDATE CUSTOMER:", error);
+                            }
+                          }}
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                      )}
+                      {can(userRole, ACTIONS.DELETE_CLIENT) && (
+                        <button
+                          onClick={async () => {
+                            if (confirm('¿Eliminar cliente y todos sus vehículos/órdenes?')) {
+                              await supabase.from('customers').delete().eq('id', customer.id);
+                              setCustomers(prev => prev.filter(c => c.id !== customer.id));
+                            }
+                          }}
+                          className="p-2 text-slate-600 hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -2005,12 +2009,14 @@ export default function TallerLivePrototype() {
                         <div key={vehicle.id} className="bg-[#0B132B] border border-white/10 px-3 py-2 rounded-xl flex items-center gap-2">
                           <span className="text-[10px] font-black text-white">{vehicle.plate}</span>
                           <span className="text-[10px] font-bold text-slate-400">{vehicle.model}</span>
-                          <button
-                            onClick={() => setDeleteVehicleId(vehicle.id)}
-                            className="ml-1 text-slate-600 hover:text-red-400 transition-colors"
-                          >
-                            <X size={12} />
-                          </button>
+                          {can(userRole, ACTIONS.DELETE_VEHICLE) && (
+                            <button
+                              onClick={() => setDeleteVehicleId(vehicle.id)}
+                              className="ml-1 text-slate-600 hover:text-red-400 transition-colors"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
                         </div>
                       ))}
                       <button
@@ -2195,6 +2201,7 @@ export default function TallerLivePrototype() {
                   </button>
                   <button
                     onClick={async () => {
+                      if (!can(userRole, ACTIONS.DELETE_VEHICLE)) return;
                       if (isSupabaseConnected) {
                         const { error } = await supabase.from('vehicles').delete().eq('id', deleteVehicleId);
                         if (error) {
