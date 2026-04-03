@@ -933,7 +933,6 @@ export default function TallerLivePrototype() {
 
   // --- Lógica de Presupuesto ---
   const openBudgetModal = (jobId: string) => {
-    if (!can(userRole, ACTIONS.GENERATE_BUDGET)) return;
     budgetJobIdRef.current = jobId;
     setActiveJobId(jobId);
     const job = jobs.find(j => String(j.id) === String(jobId));
@@ -943,7 +942,6 @@ export default function TallerLivePrototype() {
   };
 
   const handleSaveBudget = async () => {
-    if (!can(userRole, ACTIONS.EDIT_BUDGET)) return;
     if (isSavingBudget) return;
 
     const jobId = budgetJobIdRef.current;
@@ -956,17 +954,24 @@ export default function TallerLivePrototype() {
 
     setIsSavingBudget(true);
 
-    const budgetToSave = budgetAmount || '0';
     const diagnosisToSave = diagnosisText;
+    const canEditBudget = can(userRole, ACTIONS.EDIT_BUDGET);
+    const budgetToSave = canEditBudget ? (budgetAmount || '0') : undefined;
     const currentJob = jobs.find(j => String(j.id) === String(jobId));
     const shouldAdvance = ['waiting', 'awaiting_diagnosis', 'diagnosing'].includes(currentJob?.status || '');
-    // Si el precio cambia en un pedido ya enviado (y no está en 'ready'), incrementar quote_version
-    const priceChanged = currentJob?.budgetShared && budgetToSave !== currentJob?.budget && currentJob?.status !== 'ready';
+    const priceChanged = canEditBudget && currentJob?.budgetShared && budgetToSave !== currentJob?.budget && currentJob?.status !== 'ready';
     const newQuoteVersion = priceChanged ? (currentJob?.quote_version ?? 1) + 1 : undefined;
 
     setJobs(prevJobs => prevJobs.map(job =>
       String(job.id) === String(jobId)
-        ? { ...job, budget: budgetToSave, aiDiagnosis: diagnosisToSave, description: diagnosisToSave, ...(shouldAdvance ? { status: 'diagnosing' } : {}), ...(newQuoteVersion ? { quote_version: newQuoteVersion } : {}) }
+        ? {
+            ...job,
+            ...(canEditBudget ? { budget: budgetToSave } : {}),
+            aiDiagnosis: diagnosisToSave,
+            description: diagnosisToSave,
+            ...(shouldAdvance ? { status: 'diagnosing' } : {}),
+            ...(newQuoteVersion ? { quote_version: newQuoteVersion } : {}),
+          }
         : job
     ));
 
@@ -975,12 +980,11 @@ export default function TallerLivePrototype() {
         const { error } = await supabase
           .from('orders')
           .update({
-            budget: Number(budgetToSave),
-            total_estimated: Number(budgetToSave),
+            ...(canEditBudget ? { budget: Number(budgetToSave), total_estimated: Number(budgetToSave) } : {}),
             description: diagnosisToSave,
             workshop_id: workshopId,
             ...(shouldAdvance ? { status: 'diagnosing' } : {}),
-            ...(newQuoteVersion ? { quote_version: newQuoteVersion } : {})
+            ...(newQuoteVersion ? { quote_version: newQuoteVersion } : {}),
           })
           .eq('id', jobId);
         if (error) throw error;
@@ -1766,7 +1770,7 @@ export default function TallerLivePrototype() {
                     onStepClick={(step) => {
                       if (step === 0) handlePhotoClick(job.id);
                       else if (step === 1) isRecording && activeJobId === job.id ? stopRecording() : startRecording(job.id);
-                      else if (step === 2 && can(userRole, ACTIONS.GENERATE_BUDGET)) openBudgetModal(job.id);
+                      else if (step === 2) openBudgetModal(job.id);
                       else if (step === 3 && can(userRole, ACTIONS.SHARE_LINK)) handleWhatsAppShare(job);
                     }}
                   />
@@ -1781,7 +1785,6 @@ export default function TallerLivePrototype() {
                       </div>
                     );
                     const ctaBlocked =
-                      (next.action === 'budget' && !can(userRole, ACTIONS.GENERATE_BUDGET)) ||
                       (next.action === 'share' && !can(userRole, ACTIONS.SHARE_LINK));
 
                     if (ctaBlocked) return (
@@ -2664,24 +2667,26 @@ export default function TallerLivePrototype() {
                       </div>
                     )}
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Importe Total (€)</label>
-                      <input
-                        type="number"
-                        placeholder="Ej: 450"
-                        className={cn(
-                          "w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-5 px-6 text-3xl font-black focus:border-blue-500 focus:outline-none transition-all",
-                          activeJob?.status === 'ready' && "opacity-50 cursor-not-allowed"
+                    {can(userRole, ACTIONS.VIEW_PRICES) && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Importe Total (€)</label>
+                        <input
+                          type="number"
+                          placeholder="Ej: 450"
+                          className={cn(
+                            "w-full bg-[#0B132B] border-2 border-white/10 rounded-2xl py-5 px-6 text-3xl font-black focus:border-blue-500 focus:outline-none transition-all",
+                            activeJob?.status === 'ready' && "opacity-50 cursor-not-allowed"
+                          )}
+                          value={budgetAmount}
+                          onChange={(e) => { if (activeJob?.status !== 'ready') setBudgetAmount(e.target.value); }}
+                          disabled={activeJob?.status === 'ready'}
+                          autoFocus
+                        />
+                        {activeJob?.status === 'ready' && (
+                          <p className="text-xs text-amber-400 font-bold ml-1">Precio bloqueado — vehículo listo para entregar</p>
                         )}
-                        value={budgetAmount}
-                        onChange={(e) => { if (activeJob?.status !== 'ready') setBudgetAmount(e.target.value); }}
-                        disabled={activeJob?.status === 'ready'}
-                        autoFocus
-                      />
-                      {activeJob?.status === 'ready' && (
-                        <p className="text-xs text-amber-400 font-bold ml-1">Precio bloqueado — vehículo listo para entregar</p>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     <button
                       onClick={handleSaveBudget}
