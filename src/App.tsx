@@ -32,6 +32,7 @@ import { transcribeAndDiagnose, isGeminiConfigured } from './services/geminiServ
 import { AudioRecorder } from './services/audioService';
 import { compressImage } from './services/imageService';
 import { mapOrderToJob } from './lib/mapOrderToJob';
+import { can, ACTIONS } from './lib/permissions';
 import type { Job, JobStatus, Urgency } from './types';
 import { UrgencyBadge } from './components/UrgencyBadge';
 import { StatusBadge } from './components/StatusBadge';
@@ -1116,17 +1117,18 @@ export default function TallerLivePrototype() {
   };
 
   const handleDeleteJob = async (jobId: string) => {
-    // Optimistic update
-    setJobs(prev => prev.filter(j => String(j.id) !== String(jobId)));
-    
+    if (!can(userRole, ACTIONS.DELETE_ORDER)) return;
+
     if (isSupabaseConnected) {
       try {
         const { error } = await supabase.from('orders').delete().eq('id', jobId);
         if (error) throw error;
+        setJobs(prev => prev.filter(j => String(j.id) !== String(jobId)));
       } catch (e) {
         console.error('Error eliminando en Supabase:', e);
-        // Si falla, podríamos recargar para asegurar consistencia
       }
+    } else {
+      setJobs(prev => prev.filter(j => String(j.id) !== String(jobId)));
     }
   };
 
@@ -1710,12 +1712,14 @@ export default function TallerLivePrototype() {
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button
-                          onClick={() => setDeleteConfirmId(job.id)}
-                          className="p-2 text-slate-600 hover:text-red-400 transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {can(userRole, ACTIONS.DELETE_ORDER) && (
+                          <button
+                            onClick={() => setDeleteConfirmId(job.id)}
+                            className="p-2 text-slate-600 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                         <StatusBadge status={job.status} />
                       </div>
                   </div>
