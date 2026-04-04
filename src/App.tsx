@@ -38,6 +38,7 @@ import { UrgencyBadge } from './components/UrgencyBadge';
 import { StatusBadge } from './components/StatusBadge';
 import { WorkflowTracker, getNextAction } from './components/WorkflowTracker';
 import { LoginScreen } from './screens/LoginScreen';
+import { RegisterScreen } from './screens/RegisterScreen';
 import { ResetPasswordScreen } from './screens/ResetPasswordScreen';
 import { ClientView } from './views/ClientView';
 
@@ -164,6 +165,7 @@ export default function TallerLivePrototype() {
   const [allWorkshops, setAllWorkshops] = useState<{ id: string; name: string }[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
   const [isRecovery, setIsRecovery] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
   // Detección honesta de Supabase
   const isSupabaseConnected = React.useMemo(() => {
@@ -1451,7 +1453,10 @@ export default function TallerLivePrototype() {
   }
 
   if (!user && isSupabaseConnected) {
-    return <LoginScreen />;
+    if (showRegister) {
+      return <RegisterScreen onShowLogin={() => setShowRegister(false)} />;
+    }
+    return <LoginScreen onShowRegister={() => setShowRegister(true)} />;
   }
 
   return (

@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-export function LoginScreen() {
+type LoginScreenProps = {
+  onShowRegister: () => void;
+};
+
+export function LoginScreen({ onShowRegister }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -49,6 +53,12 @@ export function LoginScreen() {
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
+        <button
+          onClick={onShowRegister}
+          className="w-full mt-4 py-3 text-slate-500 font-bold text-xs uppercase tracking-widest hover:text-slate-300 transition-colors"
+        >
+          ¿Taller nuevo? Regístrate aquí
+        </button>
       </div>
     </div>
   );
