@@ -127,7 +127,7 @@ export default function TallerLivePrototype() {
   const [newVehiclePlate, setNewVehiclePlate] = useState('');
   const [newVehicleModel, setNewVehicleModel] = useState('');
   const [deleteVehicleId, setDeleteVehicleId] = useState<string | null>(null);
-  const [teamUsers, setTeamUsers] = useState<{ id: string; email: string; role: string; created_at: string }[]>([]);
+  const [teamUsers, setTeamUsers] = useState<{ id: string; email: string; role: string }[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamError, setTeamError] = useState('');
   const [showAddUser, setShowAddUser] = useState(false);
@@ -1999,12 +1999,7 @@ export default function TallerLivePrototype() {
                   <div className="space-y-2">
                     {teamUsers.map(u => (
                       <div key={u.id} className="flex items-center justify-between bg-white/5 rounded-2xl px-4 py-3">
-                        <div>
-                          <p className="text-sm font-black text-white">{u.email}</p>
-                          <p className="text-xs text-slate-400 font-bold mt-0.5">
-                            {new Date(u.created_at).toLocaleDateString('es-ES')}
-                          </p>
-                        </div>
+                        <p className="text-sm font-black text-white">{u.email}</p>
                         <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-900/30 px-2 py-1 rounded-lg">
                           {u.role}
                         </span>
