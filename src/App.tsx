@@ -127,6 +127,16 @@ export default function TallerLivePrototype() {
   const [newVehiclePlate, setNewVehiclePlate] = useState('');
   const [newVehicleModel, setNewVehicleModel] = useState('');
   const [deleteVehicleId, setDeleteVehicleId] = useState<string | null>(null);
+  const [teamUsers, setTeamUsers] = useState<{ id: string; email: string; role: string; created_at: string }[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState('');
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'taller_admin' | 'employee'>('employee');
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [addUserError, setAddUserError] = useState('');
+  const [addUserSuccess, setAddUserSuccess] = useState('');
   const [isClientLoading, setIsClientLoading] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return !!(params.get('orderId') || params.get('t'));
@@ -1074,6 +1084,50 @@ export default function TallerLivePrototype() {
     window.location.href = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
   };
 
+  const loadTeamUsers = async () => {
+    setTeamLoading(true);
+    setTeamError('');
+    const { data, error } = await supabase.rpc('list_workshop_users');
+    if (error) {
+      setTeamError('No se pudo cargar el equipo. Inténtalo de nuevo.');
+    } else {
+      setTeamUsers(data ?? []);
+    }
+    setTeamLoading(false);
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddUserError('');
+    setAddUserSuccess('');
+    setAddUserLoading(true);
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-workshop-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ email: newUserEmail, password: newUserPassword, role: newUserRole }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.error) {
+      setAddUserError(result.error ?? 'Error desconocido al crear el usuario.');
+    } else {
+      setAddUserSuccess(`Usuario creado correctamente.`);
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserRole('employee');
+      setShowAddUser(false);
+      loadTeamUsers();
+    }
+    setAddUserLoading(false);
+  };
+
   const handleReadyNotification = (job: any) => {
     const message = `*✅ VEHÍCULO FINALIZADO - ${WORKSHOP_NAME.toUpperCase()}*\n\n` +
                     `Estimado/a *${job.customer}*,\n\n` +
@@ -1868,6 +1922,97 @@ export default function TallerLivePrototype() {
                 </div>
               </div>
             </div>
+            )}
+
+            {/* Equipo — solo visible para taller_owner y super_admin */}
+            {can(userRole, ACTIONS.CREATE_USERS) && (
+              <div className="bg-[#131D3B] rounded-[32px] p-6 border border-white/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Equipo</h3>
+                  <button
+                    onClick={() => { setShowAddUser(v => !v); setAddUserError(''); setAddUserSuccess(''); }}
+                    className="text-xs font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors"
+                  >
+                    {showAddUser ? 'Cancelar' : '+ Añadir usuario'}
+                  </button>
+                </div>
+
+                {/* Formulario añadir usuario */}
+                {showAddUser && (
+                  <form onSubmit={handleAddUser} className="space-y-3 pt-2 border-t border-white/10">
+                    <input
+                      type="email"
+                      required
+                      placeholder="Email"
+                      value={newUserEmail}
+                      onChange={e => setNewUserEmail(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-2xl py-3 px-4 text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-500"
+                    />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="Contraseña temporal (mín. 6 caracteres)"
+                      value={newUserPassword}
+                      onChange={e => setNewUserPassword(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-2xl py-3 px-4 text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-500"
+                    />
+                    <select
+                      value={newUserRole}
+                      onChange={e => setNewUserRole(e.target.value as 'taller_admin' | 'employee')}
+                      className="w-full bg-white/10 border border-white/20 rounded-2xl py-3 px-4 text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    >
+                      <option value="employee">Empleado</option>
+                      <option value="taller_admin">Administrador de taller</option>
+                    </select>
+                    {addUserError && <p className="text-red-400 text-xs font-bold">{addUserError}</p>}
+                    <button
+                      type="submit"
+                      disabled={addUserLoading}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-50"
+                    >
+                      {addUserLoading ? 'Creando...' : 'Crear usuario'}
+                    </button>
+                  </form>
+                )}
+
+                {addUserSuccess && !showAddUser && (
+                  <p className="text-emerald-400 text-xs font-bold">{addUserSuccess}</p>
+                )}
+
+                {/* Lista de usuarios */}
+                {teamLoading && (
+                  <p className="text-slate-500 text-xs font-bold">Cargando equipo...</p>
+                )}
+                {teamError && (
+                  <p className="text-red-400 text-xs font-bold">{teamError}</p>
+                )}
+                {!teamLoading && !teamError && teamUsers.length === 0 && (
+                  <button
+                    onClick={loadTeamUsers}
+                    className="text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-slate-300 transition-colors"
+                  >
+                    Cargar equipo
+                  </button>
+                )}
+                {teamUsers.length > 0 && (
+                  <div className="space-y-2">
+                    {teamUsers.map(u => (
+                      <div key={u.id} className="flex items-center justify-between bg-white/5 rounded-2xl px-4 py-3">
+                        <div>
+                          <p className="text-sm font-black text-white">{u.email}</p>
+                          <p className="text-xs text-slate-400 font-bold mt-0.5">
+                            {new Date(u.created_at).toLocaleDateString('es-ES')}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-900/30 px-2 py-1 rounded-lg">
+                          {u.role}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Información del taller */}
