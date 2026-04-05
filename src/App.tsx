@@ -1102,21 +1102,12 @@ export default function TallerLivePrototype() {
     setAddUserSuccess('');
     setAddUserLoading(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-workshop-user`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`,
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ email: newUserEmail, password: newUserPassword, role: newUserRole }),
+    const { data: result, error: fnError } = await supabase.functions.invoke('create-workshop-user', {
+      body: { email: newUserEmail, password: newUserPassword, role: newUserRole },
     });
 
-    const result = await response.json();
-
-    if (!response.ok || result.error) {
-      setAddUserError(result.error ?? 'Error desconocido al crear el usuario.');
+    if (fnError || result?.error) {
+      setAddUserError(result?.error ?? fnError?.message ?? 'Error al crear el usuario.');
     } else {
       setAddUserSuccess(`Usuario creado correctamente.`);
       setNewUserEmail('');
