@@ -1515,13 +1515,6 @@ export default function TallerLivePrototype() {
         </div>
       </header>
 
-      {/* DIAGNÓSTICO TEMPORAL — retirar tras validar roles */}
-      <div className="mx-5 mt-3 px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-xl text-xs font-mono text-yellow-900 space-y-0.5">
-        <div>Email: {user?.email ?? '(vacío)'}</div>
-        <div>Role: {userRole !== '' ? userRole : '(vacío)'}</div>
-        <div>Workshop: {workshopId !== '' ? workshopId : '(vacío)'}</div>
-      </div>
-
       {/* Estadísticas Rápidas - Más compactas */}
       <div className="px-5 mt-3 grid grid-cols-3 gap-3">
         <StatCard label="En Taller" value={jobs.length} color="text-blue-700" />
@@ -1743,6 +1736,13 @@ export default function TallerLivePrototype() {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-4"
           >
+            {/* DIAGNÓSTICO TEMPORAL — retirar tras validar roles */}
+            <div className="px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-xl text-xs font-mono text-yellow-900 space-y-0.5">
+              <div>Email: {user?.email ?? '(vacío)'}</div>
+              <div>Role: {userRole !== '' ? userRole : '(vacío)'}</div>
+              <div>Workshop: {workshopId !== '' ? workshopId : '(vacío)'}</div>
+            </div>
+
             {/* Diagnóstico de sesión — solo visible para super_admin */}
             {isSuperAdmin && (
             <div className="bg-[#0a0f2e] rounded-[32px] p-6 border border-yellow-500/30 space-y-3">
