@@ -137,6 +137,7 @@ export default function TallerLivePrototype() {
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [addUserError, setAddUserError] = useState('');
   const [addUserSuccess, setAddUserSuccess] = useState('');
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [isClientLoading, setIsClientLoading] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return !!params.get('t');
@@ -979,6 +980,22 @@ export default function TallerLivePrototype() {
     setAddUserLoading(false);
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    if (!can(userRole, ACTIONS.DELETE_USERS)) return;
+    if (!confirm('¿Eliminar este usuario del equipo? Esta acción no se puede deshacer.')) return;
+    setDeletingUserId(userId);
+    const { data: result, error: fnError } = await supabase.functions.invoke('delete-workshop-user', {
+      body: { userId },
+    });
+    if (fnError || result?.error) {
+      notify(result?.error ?? fnError?.message ?? 'Error al eliminar el usuario.', 'error');
+    } else {
+      setTeamUsers(prev => prev.filter(u => u.id !== userId));
+      notify('Usuario eliminado correctamente.', 'success');
+    }
+    setDeletingUserId(null);
+  };
+
   const handleReadyNotification = (job: any) => {
     const message = `*✅ VEHÍCULO FINALIZADO - ${WORKSHOP_NAME.toUpperCase()}*\n\n` +
                     `Estimado/a *${job.customer}*,\n\n` +
@@ -1522,7 +1539,7 @@ export default function TallerLivePrototype() {
       </header>
 
       {/* Estadísticas Rápidas - Más compactas */}
-      <div className="px-5 mt-3 grid grid-cols-3 gap-3">
+      <div className="px-5 mt-1 grid grid-cols-3 gap-3">
         <StatCard label="En Taller" value={jobs.length} color="text-blue-700" />
         <StatCard label="Pendientes" value={jobs.filter(j => ['waiting', 'diagnosed', 'waiting_customer', 'awaiting_diagnosis', 'diagnosing'].includes(j.status)).length} color="text-orange-600" />
         <StatCard label="Listos" value={jobs.filter(j => j.status === 'ready').length} color="text-[#2E6B40]" />
@@ -1855,9 +1872,20 @@ export default function TallerLivePrototype() {
                     {teamUsers.map(u => (
                       <div key={u.id} className="flex items-center justify-between bg-white/5 rounded-2xl px-4 py-3">
                         <p className="text-sm font-black text-white">{u.email}</p>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-900/30 px-2 py-1 rounded-lg">
-                          {u.role}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-900/30 px-2 py-1 rounded-lg">
+                            {u.role}
+                          </span>
+                          {can(userRole, ACTIONS.DELETE_USERS) && (
+                            <button
+                              onClick={() => handleDeleteUser(u.id)}
+                              disabled={deletingUserId === u.id}
+                              className="p-1.5 text-slate-600 hover:text-red-400 transition-colors disabled:opacity-40"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

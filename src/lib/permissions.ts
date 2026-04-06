@@ -51,8 +51,6 @@ const PERMISSIONS: Record<string, string[]> = {
     'delete_client',
     'delete_vehicle',
     'view_users',
-    'create_users',
-    'edit_users',
     'configure_notifications',
     'edit_workshop',
     'view_metrics',
