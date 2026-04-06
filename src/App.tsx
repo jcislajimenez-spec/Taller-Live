@@ -111,7 +111,7 @@ export default function TallerLivePrototype() {
   const [diagnosisText, setDiagnosisText] = useState<string>('');
   const [viewMode, setViewMode] = useState<'taller' | 'client'>(() => {
     const params = new URLSearchParams(window.location.search);
-    return (params.get('orderId') || params.get('t')) ? 'client' : 'taller';
+    return params.get('t') ? 'client' : 'taller';
   });
   const [clientJob, setClientJob] = useState<Job | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
@@ -139,7 +139,7 @@ export default function TallerLivePrototype() {
   const [addUserSuccess, setAddUserSuccess] = useState('');
   const [isClientLoading, setIsClientLoading] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return !!(params.get('orderId') || params.get('t'));
+    return !!params.get('t');
   });
   const [expandedDiagnosis, setExpandedDiagnosis] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<{id: string, message: string, type: 'success' | 'error' | 'info'}[]>([]);
@@ -529,8 +529,6 @@ export default function TallerLivePrototype() {
   // Cargar datos iniciales (LocalStorage + Supabase)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const orderId = params.get('orderId');
-    const dataParam = params.get('d');
     const tokenParam = params.get('t');
 
     async function initializeApp() {
@@ -581,135 +579,6 @@ export default function TallerLivePrototype() {
           }
         } catch (e) {
           console.error("Error cargando por token:", e);
-        }
-      }
-
-      // 2. Si viene información en el link (Modo Autónomo / Legacy)
-      if (dataParam) {
-        try {
-          // Decodificación robusta para caracteres especiales (acentos, etc)
-          const decodedData = JSON.parse(decodeURIComponent(escape(atob(dataParam))));
-          let job: Job = {
-            id: decodedData.id,
-            plate: decodedData.p ?? '',
-            model: decodedData.m ?? '',
-            customer: decodedData.c ?? '',
-            customerPhone: '',
-            budget: decodedData.b ?? '0',
-            description: decodedData.d ?? '',
-            status: (decodedData.s as JobStatus) ?? 'waiting',
-            aiDiagnosis: decodedData.ai || '',
-            budgetShared: false,
-            public_token: null,
-            is_accepted: false,
-            quote_version: 1,
-            approved_quote_version: null,
-            approved_at: null,
-            entryTime: 'Hoy',
-            photos: decodedData.ph || [],
-            audios: [],
-          };
-
-          // --- MEJORA: Priorizar datos locales si ya existen en este navegador ---
-          const localOverride = currentJobs.find((j: any) => String(j.id) === String(job.id));
-          if (localOverride) {
-            job = { ...job, ...localOverride };
-          }
-
-          setClientJob(job);
-          setIsApproved(job.status === 'repairing' || job.status === 'ready');
-          setViewMode('client');
-          
-          // --- MEJORA: Buscar datos completos en Supabase (fotos, diagnóstico) ---
-          if (isSupabaseConnected) {
-            try {
-              const { data } = await supabase
-                .from('orders')
-                .select(`
-                  *,
-                  media:order_media(*)
-                `)
-                .eq('id', job.id)
-                .single();
-              
-              if (data) {
-                const fullJob = {
-                  ...job,
-                  status: data.status,
-                  photos: data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || job.photos,
-                  audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
-                  aiDiagnosis: data.description || job.aiDiagnosis,
-                  budget: data.budget?.toString() || job.budget
-                };
-                setClientJob(fullJob);
-                setIsApproved(data.status === 'repairing' || data.status === 'ready' || data.is_accepted === true);
-              }
-            } catch (e) {
-              console.error('Error cargando datos reales de Supabase:', e);
-            }
-          }
-          
-          setIsClientLoading(false);
-          return;
-        } catch (e) {
-          console.error("Error decodificando link");
-        }
-      }
-
-      if (orderId) {
-        // 1. Intentar encontrar en local (usando comparación robusta de strings)
-        const localJob = currentJobs.find((j: any) => String(j.id) === String(orderId));
-        
-        if (localJob) {
-          setClientJob(localJob);
-          setIsApproved(localJob.status === 'repairing' || localJob.status === 'ready');
-          setIsClientLoading(false);
-        } else {
-          // 2. Si no está en local, intentar buscar en Supabase
-          try {
-            const { data, error } = await supabase
-              .from('orders')
-              .select(`
-                *,
-                vehicle:vehicles(*),
-                customer:customers(*),
-                media:order_media(*)
-              `)
-              .eq('id', orderId)
-              .single();
-
-            if (data) {
-              const fetchedJob: Job = {
-                id: data.id,
-                plate: data.vehicle?.plate ?? '',
-                model: data.vehicle?.model ?? '',
-                customer: data.customer?.name ?? '',
-                customerPhone: data.customer?.phone ?? '',
-                status: data.status,
-                budget: data.budget?.toString() || '0',
-                aiDiagnosis: data.description,
-                budgetShared: data.status === 'waiting_customer' || data.status === 'repairing' || data.status === 'ready',
-                description: data.description,
-                public_token: data.public_token ?? null,
-                is_accepted: data.is_accepted ?? false,
-                quote_version: data.quote_version ?? 1,
-                approved_quote_version: data.approved_quote_version ?? null,
-                approved_at: data.approved_at ?? null,
-                entryTime: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                photos: data.media?.filter((m: any) => m.media_type === 'image').map((m: any) => m.file_url) || [],
-                audios: data.media?.filter((m: any) => m.media_type === 'audio').map((m: any) => m.file_url) || [],
-              };
-              
-              setClientJob(fetchedJob);
-              setIsApproved(data.status === 'repairing' || data.status === 'ready');
-            } else {
-              setClientError("No hemos podido encontrar tu orden de trabajo. Si es una demo local, recuerda abrir el link en el mismo navegador.");
-            }
-          } catch (e) {
-            setClientError("Error al conectar con el servidor. Inténtalo de nuevo más tarde.");
-          } finally {
-            setIsClientLoading(false);
-          }
         }
       }
 
@@ -1043,23 +912,11 @@ export default function TallerLivePrototype() {
     // Usamos la URL pública configurada o la actual como fallback
     const baseUrl = publicUrl || window.location.origin;
 
-    let magicLink;
-    if (job.public_token) {
-      magicLink = `${baseUrl}?t=${job.public_token}`;
-    } else {
-      // Fallback a base64 si no hay token (para modo local o transiciones)
-      const jobData = {
-        id: job.id,
-        p: job.plate,
-        m: job.model,
-        c: job.customer,
-        b: job.budget,
-        d: job.description,
-        s: job.status
-      };
-      const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(jobData))));
-      magicLink = `${baseUrl}?d=${encodedData}`;
+    if (!job.public_token) {
+      notify("Este pedido no tiene enlace público generado. Guárdalo y vuelve a intentarlo.", 'error');
+      return;
     }
+    const magicLink = `${baseUrl}?t=${job.public_token}`;
 
     const revisionPrefix = hasPendingRevision ? `⚠️ *PRESUPUESTO REVISADO (v${job.quote_version ?? 1})*\n\n` : '';
     const message = `*📋 INFORME DE TALLER - ${WORKSHOP_NAME.toUpperCase()}*\n\n` +
