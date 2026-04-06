@@ -597,6 +597,7 @@ export default function TallerLivePrototype() {
   };
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!can(userRole, ACTIONS.UPLOAD_MEDIA)) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -823,6 +824,7 @@ export default function TallerLivePrototype() {
   };
 
   const handleSaveBudget = async () => {
+    if (!can(userRole, ACTIONS.EDIT_DIAGNOSIS)) return;
     if (isSavingBudget) return;
 
     const jobId = budgetJobIdRef.current;
@@ -955,6 +957,7 @@ export default function TallerLivePrototype() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!can(userRole, ACTIONS.CREATE_USERS)) return;
     setAddUserError('');
     setAddUserSuccess('');
     setAddUserLoading(true);
@@ -1014,6 +1017,7 @@ export default function TallerLivePrototype() {
   }, [viewMode, isSupabaseConnected, fetchJobsFromSupabase]);
 
   const handleDeliverJob = async (jobId: string) => {
+    if (!can(userRole, ACTIONS.UPDATE_STATUS)) return;
     setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? { ...j, status: 'delivered' } : j));
     if (isSupabaseConnected) {
       try {
@@ -1058,6 +1062,7 @@ export default function TallerLivePrototype() {
 
   const handleUpdateJob = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!can(userRole, ACTIONS.EDIT_VEHICLE)) return;
     if (!editingJob) return;
 
     const updatedJob = {
@@ -1130,6 +1135,7 @@ export default function TallerLivePrototype() {
 
   const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!can(userRole, ACTIONS.CREATE_ORDER)) return;
     setIsLoading(true);
 
     if (!workshopId) {
@@ -1697,6 +1703,7 @@ export default function TallerLivePrototype() {
                       if (next.action === 'budget') openBudgetModal(job.id);
                       else if (next.action === 'share') handleWhatsAppShare(job);
                       else if (next.action === 'finish') {
+                        if (!can(userRole, ACTIONS.UPDATE_STATUS)) return;
                         const updatedStatus = 'ready';
                         setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: updatedStatus } : j));
                         if (isSupabaseConnected) supabase.from('orders').update({ status: updatedStatus }).eq('id', job.id).then();
