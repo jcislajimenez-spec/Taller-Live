@@ -898,10 +898,11 @@ export default function TallerLivePrototype() {
     const hasPendingRevision = (job.quote_version ?? 1) > 1 && (job.quote_version ?? 1) > (job.approved_quote_version ?? 0);
 
     if (!job.budgetShared) {
-      // Primer envío: poner en waiting_customer
+      // Primer envío: poner en waiting_customer y registrar timestamp analítico
+      const sharedAt = new Date().toISOString();
       setJobs(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, budgetShared: true, status: 'waiting_customer' } : j));
       if (isSupabaseConnected) {
-        supabase.from('orders').update({ status: 'waiting_customer' }).eq('id', job.id).then();
+        supabase.from('orders').update({ status: 'waiting_customer', budget_shared_at: sharedAt }).eq('id', job.id).then();
       }
     } else if (hasPendingRevision && job.status === 'repairing') {
       // Revisión con precio cambiado desde repairing: volver a waiting_customer
@@ -1035,10 +1036,11 @@ export default function TallerLivePrototype() {
 
   const handleDeliverJob = async (jobId: string) => {
     if (!can(userRole, ACTIONS.UPDATE_STATUS)) return;
+    const deliveredAt = new Date().toISOString();
     setJobs(prev => prev.map(j => String(j.id) === String(jobId) ? { ...j, status: 'delivered' } : j));
     if (isSupabaseConnected) {
       try {
-        const { error } = await supabase.from('orders').update({ status: 'delivered' }).eq('id', jobId);
+        const { error } = await supabase.from('orders').update({ status: 'delivered', delivered_at: deliveredAt }).eq('id', jobId);
         if (error) throw error;
         notify('Vehículo marcado como entregado', 'success');
       } catch (e: any) {
@@ -1446,7 +1448,7 @@ export default function TallerLivePrototype() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="bg-[#14151F] text-white px-5 pt-5 pb-10 rounded-b-[28px] shadow-2xl border-b border-white/[0.08]">
+      <header className="bg-[#14151F] text-white px-5 pt-5 pb-4 rounded-b-[28px] shadow-2xl border-b border-white/[0.08]">
         {/* Fila 1: Logo · [Empresa en desktop] · Acciones */}
         <div className="flex items-center justify-between mb-3">
           {/* Izquierda: TallerLive */}
@@ -1539,7 +1541,7 @@ export default function TallerLivePrototype() {
       </header>
 
       {/* Estadísticas Rápidas - Más compactas */}
-      <div className="px-5 mt-1 grid grid-cols-3 gap-3">
+      <div className="px-5 mt-0 grid grid-cols-3 gap-3">
         <StatCard label="En Taller" value={jobs.length} color="text-blue-700" />
         <StatCard label="Pendientes" value={jobs.filter(j => ['waiting', 'diagnosed', 'waiting_customer', 'awaiting_diagnosis', 'diagnosing'].includes(j.status)).length} color="text-orange-600" />
         <StatCard label="Listos" value={jobs.filter(j => j.status === 'ready').length} color="text-[#2E6B40]" />
