@@ -2766,8 +2766,6 @@ export default function TallerLivePrototype() {
 
       {/* Navegación Inferior */}
       <nav className="fixed bottom-0 inset-x-0 bg-[#14151F]/98 backdrop-blur-lg border-t border-white/[0.08] h-[60px] flex items-center justify-around px-8 z-40">
-        {/* DEBUG TEMPORAL — retirar tras confirmar causa */}
-        {console.log('[metrics-nav]', { userRole, raw: JSON.stringify(userRole), canMetrics: can(userRole, ACTIONS.VIEW_METRICS) }) as undefined}
         <NavItem icon={<Wrench size={20} />} label="Taller" active={activeTab === 'taller'} onClick={() => setActiveTab('taller')} />
         <NavItem icon={<Clock size={20} />} label="Historial" active={activeTab === 'historial'} onClick={() => setActiveTab('historial')} />
         <NavItem icon={<Phone size={20} />} label="Clientes" active={activeTab === 'clientes'} onClick={() => setActiveTab('clientes')} />
