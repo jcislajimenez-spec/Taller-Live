@@ -23,7 +23,8 @@ import {
   Edit2,
   Info,
   Terminal,
-  History
+  History,
+  BarChart2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, generateUUID } from './lib/utils';
@@ -39,6 +40,7 @@ import { StatusBadge } from './components/StatusBadge';
 import { WorkflowTracker, getNextAction } from './components/WorkflowTracker';
 import { LoginScreen } from './screens/LoginScreen';
 import { RegisterScreen } from './screens/RegisterScreen';
+import { MetricsScreen } from './screens/MetricsScreen';
 import { ResetPasswordScreen } from './screens/ResetPasswordScreen';
 import { ClientView } from './views/ClientView';
 
@@ -120,7 +122,7 @@ export default function TallerLivePrototype() {
   });
   const [isApproved, setIsApproved] = useState(false);
   const [justApproved, setJustApproved] = useState(false); // true solo cuando el cliente aprueba en esta sesión
-  const [activeTab, setActiveTab] = useState<'taller' | 'historial' | 'clientes' | 'ajustes'>('taller');
+  const [activeTab, setActiveTab] = useState<'taller' | 'historial' | 'clientes' | 'ajustes' | 'metricas'>('taller');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deliverConfirmId, setDeliverConfirmId] = useState<string | null>(null);
   const [addVehicleCustomerId, setAddVehicleCustomerId] = useState<string | null>(null);
@@ -310,9 +312,10 @@ export default function TallerLivePrototype() {
         return;
       }
 
-      setUserRole(profile.role ?? '');
+      const normalizedRole = (profile.role ?? '').trim();
+      setUserRole(normalizedRole);
 
-      if (profile.role === 'super_admin') {
+      if (normalizedRole === 'super_admin') {
         // super_admin: cargar lista de talleres y elegir uno activo inicial
         setIsSuperAdmin(true);
         const { data: workshops } = await supabase.from('workshops').select('id, name');
@@ -2124,6 +2127,16 @@ export default function TallerLivePrototype() {
             })()}
           </motion.div>
         )}
+
+        {activeTab === 'metricas' && can(userRole, ACTIONS.VIEW_METRICS) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3"
+          >
+            <MetricsScreen workshopId={workshopId} userRole={userRole} />
+          </motion.div>
+        )}
       </main>
 
         {/* MODAL: AÑADIR VEHÍCULO */}
@@ -2753,9 +2766,14 @@ export default function TallerLivePrototype() {
 
       {/* Navegación Inferior */}
       <nav className="fixed bottom-0 inset-x-0 bg-[#14151F]/98 backdrop-blur-lg border-t border-white/[0.08] h-[60px] flex items-center justify-around px-8 z-40">
+        {/* DEBUG TEMPORAL — retirar tras confirmar causa */}
+        {console.log('[metrics-nav]', { userRole, raw: JSON.stringify(userRole), canMetrics: can(userRole, ACTIONS.VIEW_METRICS) }) as undefined}
         <NavItem icon={<Wrench size={20} />} label="Taller" active={activeTab === 'taller'} onClick={() => setActiveTab('taller')} />
         <NavItem icon={<Clock size={20} />} label="Historial" active={activeTab === 'historial'} onClick={() => setActiveTab('historial')} />
         <NavItem icon={<Phone size={20} />} label="Clientes" active={activeTab === 'clientes'} onClick={() => setActiveTab('clientes')} />
+        {can(userRole, ACTIONS.VIEW_METRICS) && (
+          <NavItem icon={<BarChart2 size={20} />} label="Rendimiento" active={activeTab === 'metricas'} onClick={() => setActiveTab('metricas')} />
+        )}
         <NavItem icon={<SettingsIcon size={20} />} label="Ajustes" active={activeTab === 'ajustes'} onClick={() => setActiveTab('ajustes')} />
       </nav>
     </div>
