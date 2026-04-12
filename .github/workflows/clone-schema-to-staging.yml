@@ -1,0 +1,35 @@
+name: Clone DB Schema to Staging
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clone-schema:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Dump production schema
+        run: |
+          pg_dump \
+            --schema-only \
+            --no-owner \
+            --no-acl \
+            --schema=public \
+            "$PROD_DB_URL" > schema_prod.sql
+        env:
+          PROD_DB_URL: ${{ secrets.PROD_DB_URL }}
+
+      - name: Apply schema to staging
+        run: |
+          psql "$STAGING_DB_URL" -f schema_prod.sql
+        env:
+          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-prod
+          path: schema_prod.sql
